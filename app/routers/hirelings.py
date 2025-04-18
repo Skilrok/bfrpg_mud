@@ -15,7 +15,17 @@ async def create_hireling(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(auth.get_current_user),
 ):
-    db_hireling = models.Hireling(**hireling.dict(), user_id=current_user.id)
+    # Create the hireling with user data
+    db_hireling = models.Hireling(
+        name=hireling.name,
+        character_class=hireling.character_class,
+        level=hireling.level,
+        experience=hireling.experience,
+        loyalty=hireling.loyalty,
+        wage=hireling.wage,
+        user_id=current_user.id,
+        is_available=True,
+    )
     db.add(db_hireling)
     db.commit()
     db.refresh(db_hireling)
@@ -64,6 +74,7 @@ async def get_hireling(
 
     hireling.update_payment_status()
     db.commit()
+    db.refresh(hireling)
 
     return hireling
 
@@ -103,6 +114,7 @@ async def hire_hireling(
     hireling.is_available = False
     db.commit()
     db.refresh(hireling)
+    
     return hireling
 
 
@@ -127,6 +139,7 @@ async def dismiss_hireling(
     hireling.is_available = True
     db.commit()
     db.refresh(hireling)
+    
     return hireling
 
 
@@ -158,6 +171,7 @@ async def pay_hireling(
 
     db.commit()
     db.refresh(hireling)
+    
     return hireling
 
 
@@ -185,4 +199,5 @@ async def reward_hireling(
 
     db.commit()
     db.refresh(hireling)
+    
     return hireling

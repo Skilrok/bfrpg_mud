@@ -6,8 +6,10 @@ from app.main import app
 from fastapi.testclient import TestClient
 from tests.test_auth import get_test_token
 from app import models
-from app.routers.auth import get_current_user
+from app.routers.auth import get_current_user, create_access_token
 import os
+import uuid
+from datetime import timedelta
 
 # Explicitly import all models to ensure they're registered with Base metadata
 from app.models import User, Character, Hireling
@@ -78,25 +80,30 @@ def client():
     return TestClient(app)
 
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def test_user(db_session):
-    # Check if test user already exists
-    existing_user = db_session.query(models.User).filter(
-        models.User.username == "testuser"
-    ).first()
+    # Create a unique user for each test
+    unique_id = uuid.uuid4().hex[:8]
+    username = f"testuser_{unique_id}"
+    email = f"test_{unique_id}@example.com"
     
-    if existing_user:
-        return existing_user
-        
+    # Create and add user to the database
     user = models.User(
-        username="testuser", 
-        email="test@example.com", 
+        username=username,
+        email=email,
         hashed_password="hashedpassword",
         is_active=True
     )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
+    
+    # Override the auth dependency for testing
+    async def override_get_current_user():
+        return user
+    
+    app.dependency_overrides[get_current_user] = override_get_current_user
+    
     return user
 
 
@@ -106,18 +113,38 @@ def test_token(test_user):
 
 
 @pytest.fixture
-def auth_headers(test_token):
-    return {"Authorization": f"Bearer {test_token}"}
+def auth_headers(test_user):
+    # Create an access token for the test user
+    access_token = create_access_token(
+        data={"sub": test_user.username},
+        expires_delta=timedelta(minutes=30)
+    )
+    return {"Authorization": f"Bearer {access_token}"}
 
 
-@pytest.fixture(autouse=True)
-def override_auth_dependency(test_user):
-    """Override the authentication dependency for all tests"""
+@pytest.fixture
+def test_character(db_session, test_user):
+    # Create a test character
+    character = models.Character(
+        name="Test Character",
+        description="A test character",
+        level=1,
+        experience=0,
+        user_id=test_user.id
+    )
+    db_session.add(character)
+    db_session.commit()
+    db_session.refresh(character)
+    return character
+
+
+# Cleanup after tests
+def teardown_module(module):
+    # Clear dependency overrides
+    app.dependency_overrides.clear()
     
-    async def get_test_current_user():
-        return test_user
-
-    app.dependency_overrides[get_current_user] = get_test_current_user
-    yield
-    # We don't clear the dependency overrides here since we're sharing the dependency
-    # across multiple tests
+    # Close connections
+    engine.dispose()
+    
+    # We won't try to delete the DB file as it might be locked on Windows
+    # Let the OS handle it when the process exits

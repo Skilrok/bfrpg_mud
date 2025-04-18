@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
+from datetime import datetime
 
 
 class Token(BaseModel):
@@ -65,6 +66,9 @@ class Hireling(HirelingBase):
     is_available: bool
     user_id: int
     master_id: Optional[int] = None
+    days_unpaid: int = 0
+    last_payment_date: Optional[datetime] = None
 
     class Config:
         from_attributes = True
+        orm_mode = True  # Include this for backward compatibility with older versions

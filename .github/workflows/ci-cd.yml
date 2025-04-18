@@ -10,6 +10,21 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: bfrpg_user
+          POSTGRES_PASSWORD: bfrpg_password
+          POSTGRES_DB: bfrpg_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
     steps:
     - uses: actions/checkout@v3
     
@@ -23,14 +38,18 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         
-    - name: Run tests
+    - name: Run unit tests
+      env:
+        DATABASE_URL: postgresql://bfrpg_user:bfrpg_password@localhost:5432/bfrpg_test
+        SECRET_KEY: test_secret_key
+        ENVIRONMENT: test
       run: |
-        # Add your test command here once tests are set up
-        echo "Tests will be added here"
+        pytest tests/ -v
         
-  docker:
+  build-and-push:
     needs: test
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     
     steps:
     - uses: actions/checkout@v3
@@ -38,9 +57,51 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v2
       
-    - name: Build and test Docker container
-      run: |
-        docker build -t bfrpg-mud .
-        docker run --rm bfrpg-mud --version
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
         
-    # Deployment steps will be added here when ready 
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v4
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=sha,format=long
+          latest
+          
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+  
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Deploy to server
+      # This is a placeholder for your actual deployment method
+      # You could use SSH to connect to your server and pull the latest image
+      # Or configure deployment to a cloud service like AWS, Azure, or GCP
+      run: |
+        echo "Deployment steps would go here"
+        echo "For example, using SSH to update the application on your server"
+        # ssh user@your-server "cd /path/to/app && docker-compose pull && docker-compose up -d"
+        
+    - name: Verify deployment
+      run: |
+        echo "Verification steps would go here"
+        # For example, checking if the service is responding
+        # curl -f https://your-application-url.com/health 
