@@ -82,3 +82,10 @@ async def login_for_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+@router.post("/logout")
+async def logout(current_user: models.User = Depends(get_current_user)):
+    # For JWT, logout is handled client-side by removing the token
+    # We simply acknowledge the request here
+    return {"message": "Successfully logged out"}
