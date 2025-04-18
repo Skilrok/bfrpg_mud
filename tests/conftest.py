@@ -10,6 +10,7 @@ from app.routers.auth import get_current_user, create_access_token
 import os
 import uuid
 from datetime import timedelta
+from app.utils import get_password_hash
 
 # Explicitly import all models to ensure they're registered with Base metadata
 from app.models import User, Character, Hireling
@@ -88,10 +89,11 @@ def test_user(db_session):
     email = f"test_{unique_id}@example.com"
     
     # Create and add user to the database
+    hashed_password = get_password_hash("testpassword")
     user = models.User(
         username=username,
         email=email,
-        hashed_password="hashedpassword",
+        hashed_password=hashed_password,
         is_active=True
     )
     db_session.add(user)
@@ -104,7 +106,11 @@ def test_user(db_session):
     
     app.dependency_overrides[get_current_user] = override_get_current_user
     
-    return user
+    yield user
+    
+    # Clean up override after test
+    if get_current_user in app.dependency_overrides:
+        del app.dependency_overrides[get_current_user]
 
 
 @pytest.fixture

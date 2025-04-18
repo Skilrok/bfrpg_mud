@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 import os
 from dotenv import load_dotenv
+import traceback
 from app.database import get_db
 from app.routers import auth, users, characters, items, combat, hirelings
 
@@ -37,6 +38,44 @@ async def root():
 @app.get("/health")
 async def health_check():
     return {"status": "healthy"}
+
+
+@app.get("/debug")
+async def debug_info(db=Depends(get_db)):
+    """
+    Debug endpoint to check if database connection is working
+    and to see what tables exist in the database
+    """
+    try:
+        # Try to query the User model to see if the table exists
+        from app.models import User
+        user_count = db.query(User).count()
+        
+        # Get a list of all tables in the database
+        from sqlalchemy import inspect
+        inspector = inspect(db.bind)
+        tables = inspector.get_table_names()
+        
+        # Get column info for users table
+        users_columns = inspector.get_columns("users")
+        users_column_info = [{"name": col["name"], "type": str(col["type"])} for col in users_columns]
+        
+        # Get column info for characters table
+        characters_columns = inspector.get_columns("characters")
+        characters_column_info = [{"name": col["name"], "type": str(col["type"])} for col in characters_columns]
+        
+        return {
+            "database_connection": "working",
+            "tables": tables,
+            "user_count": user_count,
+            "users_columns": users_column_info,
+            "characters_columns": characters_column_info
+        }
+    except Exception as e:
+        return {
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }
 
 
 if __name__ == "__main__":
