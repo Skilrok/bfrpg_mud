@@ -132,3 +132,61 @@ This project seeks to revive the classic feel of text-based dungeon exploration 
 - Combat resolution must be deterministic and based strictly on BFRPG rules
 - Mapping is intended to be external (paper or third-party tool)
 - AI tools (like ChatGPT or Cursor) are permitted for development, not gameplay 
+
+---
+
+## 11. 🖥️ UI Design & Interface
+
+### Overall Philosophy
+- **Text-first approach**: Minimal graphics, focus on rich text descriptions
+- **Command-line interface**: Primary interaction via text commands
+- **Accessibility**: Interface should be usable with screen readers
+
+### Interface Components
+1. **Command Input**
+   - Text input field at bottom of screen
+   - Command history accessible via up/down arrows
+   - Tab completion for common commands and targets
+
+2. **Main Output Window**
+   - Scrollable text area showing game responses
+   - Color-coded text for different types of information
+   - Timestamps for important events
+
+3. **Status Panels**
+   - Character stats (name, HP, attributes) in collapsible sidebar
+   - Inventory summary showing equipped items
+   - Party member status when in a group
+
+4. **Minimalist Visual Elements**
+   - Simple ASCII/Unicode art for critical scenes or maps
+   - Color-coded text for different message types:
+     - System messages (gray)
+     - Combat (red)
+     - Loot/items (green)
+     - Environment descriptions (blue)
+     - Chat (white)
+
+### Layout
+- Single-page application with responsive design
+- Mobile-friendly with collapsible panels
+- 80% screen space dedicated to main text output
+- Dark mode by default with high-contrast option
+
+### Technical Implementation
+- Pure HTML/CSS for layout and styling
+- JavaScript for dynamic content and WebSocket handling
+- No heavy frameworks required
+- Local storage for settings and command history
+
+### Accessibility Features
+- Keyboard shortcuts for all common actions
+- Screen reader compatibility
+- Configurable text size and contrast
+- Optional sound cues for important events
+
+### Future UI Enhancements
+- Optional simple tile representation of nearby rooms
+- Customizable themes
+- Exportable character sheets
+- Simple dice visualization for combat rolls 

@@ -1,10 +1,12 @@
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
 import os
 from dotenv import load_dotenv
 import traceback
 from app.database import get_db
-from app.routers import auth, users, characters, items, combat, hirelings
+from app.routers import auth, users, characters, items, combat, hirelings, websocket
 
 # Load environment variables
 load_dotenv()
@@ -28,10 +30,21 @@ app.include_router(characters.router, prefix="/api/characters", tags=["character
 app.include_router(items.router, prefix="/api/items", tags=["items"])
 app.include_router(combat.router, prefix="/api/combat", tags=["combat"])
 app.include_router(hirelings.router, prefix="/api/hirelings", tags=["hirelings"])
+app.include_router(websocket.router, tags=["websocket"])
 
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 async def root():
+    """Serve the MUD UI"""
+    with open("static/index.html", "r") as f:
+        return f.read()
+
+
+@app.get("/api")
+async def api_root():
+    """API root endpoint"""
     return {"message": "Welcome to BFRPG MUD API"}
 
 

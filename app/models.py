@@ -8,12 +8,18 @@ from sqlalchemy import (
     Float,
     DateTime,
     Enum,
-    JSON,
+    JSON
 )
 from sqlalchemy.orm import relationship
 from datetime import datetime
 import enum
-from .database import Base
+import os
+
+from .database import Base, JSONEncodedDict
+
+# Determine if using SQLite (for JSON handling)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./bfrpg.db")
+JSON_TYPE = JSONEncodedDict if DATABASE_URL.startswith("sqlite") else JSON
 
 
 class User(Base):
@@ -69,8 +75,8 @@ class Character(Base):
     armor_class = Column(Integer, default=10)
     
     # Equipment and inventory (stored as JSON)
-    equipment = Column(JSON, default=dict)
-    inventory = Column(JSON, default=dict)
+    equipment = Column(JSON_TYPE, default=dict)
+    inventory = Column(JSON_TYPE, default=dict)
     gold = Column(Integer, default=0)
     
     # Known languages (comma-separated string)
@@ -84,13 +90,13 @@ class Character(Base):
     save_spells = Column(Integer)
     
     # Special abilities based on race
-    special_abilities = Column(JSON, default=list)
+    special_abilities = Column(JSON_TYPE, default=list)
     
     # For magic users and clerics
-    spells_known = Column(JSON, default=list)
+    spells_known = Column(JSON_TYPE, default=list)
     
     # For thieves
-    thief_abilities = Column(JSON, default=dict)
+    thief_abilities = Column(JSON_TYPE, default=dict)
     
     user_id = Column(Integer, ForeignKey("users.id"))
 
@@ -129,3 +135,31 @@ class Hireling(Base):
                 self.days_unpaid = days_since_payment
                 # Loyalty decreases by 5 points per unpaid day
                 self.update_loyalty(-5.0 * days_since_payment)
+
+
+class ItemType(str, enum.Enum):
+    WEAPON = "weapon"
+    ARMOR = "armor"
+    SHIELD = "shield"
+    POTION = "potion"
+    SCROLL = "scroll"
+    WAND = "wand"
+    RING = "ring"
+    AMMUNITION = "ammunition"
+    TOOL = "tool"
+    CONTAINER = "container"
+    CLOTHING = "clothing"
+    FOOD = "food"
+    MISCELLANEOUS = "miscellaneous"
+
+
+class Item(Base):
+    __tablename__ = "items"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True, nullable=False)
+    description = Column(Text, nullable=True)
+    item_type = Column(Enum(ItemType), nullable=False)
+    value = Column(Integer, default=0)  # Value in gold pieces
+    weight = Column(Float, default=0.0)  # Weight in pounds
+    properties = Column(JSON_TYPE, default=dict)  # Flexible field for item-specific properties

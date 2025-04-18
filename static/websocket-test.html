@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>WebSocket Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            background-color: #222;
+            color: #eee;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #0f0;
+        }
+        .panel {
+            border: 1px solid #555;
+            padding: 10px;
+            margin-bottom: 15px;
+            background-color: #333;
+        }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            background-color: #444;
+            border: 1px solid #666;
+            color: #fff;
+        }
+        button {
+            cursor: pointer;
+            background-color: #0a5;
+            color: #000;
+        }
+        .log {
+            height: 300px;
+            overflow-y: auto;
+            background-color: #111;
+            padding: 10px;
+            white-space: pre-wrap;
+        }
+        .log div {
+            margin: 2px 0;
+        }
+        .system {
+            color: #888;
+            font-style: italic;
+        }
+        .received {
+            color: #0f0;
+        }
+        .sent {
+            color: #0cf;
+        }
+        .error {
+            color: #f55;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Test Tool</h1>
+        
+        <div class="panel">
+            <h2>Connection</h2>
+            <div>
+                <label for="user-id">User ID:</label>
+                <input type="text" id="user-id" placeholder="Enter user ID">
+            </div>
+            <div>
+                <label for="room-id">Room ID:</label>
+                <input type="text" id="room-id" value="lobby">
+            </div>
+            <div>
+                <label for="token">Auth Token:</label>
+                <input type="text" id="token" placeholder="Enter JWT token" style="width: 300px;">
+            </div>
+            <div>
+                <button id="connect-btn">Connect</button>
+                <button id="disconnect-btn" disabled>Disconnect</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Send Message</h2>
+            <div>
+                <label for="message-type">Type:</label>
+                <select id="message-type">
+                    <option value="chat">Chat</option>
+                    <option value="command">Command</option>
+                </select>
+            </div>
+            <div>
+                <label for="message-content">Content:</label>
+                <input type="text" id="message-content" style="width: 300px;">
+            </div>
+            <div>
+                <button id="send-btn" disabled>Send</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <h2>Message Log</h2>
+            <div class="log" id="message-log"></div>
+            <div>
+                <button id="clear-log">Clear Log</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Elements
+        const userIdInput = document.getElementById('user-id');
+        const roomIdInput = document.getElementById('room-id');
+        const tokenInput = document.getElementById('token');
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const messageTypeSelect = document.getElementById('message-type');
+        const messageContentInput = document.getElementById('message-content');
+        const sendBtn = document.getElementById('send-btn');
+        const messageLog = document.getElementById('message-log');
+        const clearLogBtn = document.getElementById('clear-log');
+        
+        // State
+        let socket = null;
+        
+        // Check if there's a stored token in localStorage
+        if (localStorage.getItem('authToken')) {
+            tokenInput.value = localStorage.getItem('authToken');
+            userIdInput.value = localStorage.getItem('userId') || '';
+        }
+        
+        // Connection handling
+        connectBtn.addEventListener('click', () => {
+            const userId = userIdInput.value.trim();
+            const roomId = roomIdInput.value.trim();
+            const token = tokenInput.value.trim();
+            
+            if (!userId) {
+                logMessage('Please enter a User ID', 'error');
+                return;
+            }
+            
+            if (!token) {
+                logMessage('Please enter an auth token', 'error');
+                return;
+            }
+            
+            // Store token for later use
+            localStorage.setItem('authToken', token);
+            localStorage.setItem('userId', userId);
+            
+            // Create WebSocket connection
+            const wsUrl = `ws://localhost:8000/ws/${roomId}/${userId}?token=${token}`;
+            logMessage(`Connecting to ${wsUrl}`, 'system');
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = (event) => {
+                logMessage('Connection established', 'system');
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+            };
+            
+            socket.onmessage = (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    logMessage(`Received: ${JSON.stringify(data, null, 2)}`, 'received');
+                } catch (e) {
+                    logMessage(`Received (raw): ${event.data}`, 'received');
+                }
+            };
+            
+            socket.onclose = (event) => {
+                if (event.wasClean) {
+                    logMessage(`Connection closed cleanly, code=${event.code}, reason=${event.reason}`, 'system');
+                } else {
+                    logMessage('Connection died', 'error');
+                }
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+                socket = null;
+            };
+            
+            socket.onerror = (error) => {
+                logMessage(`WebSocket Error: ${error.message}`, 'error');
+            };
+        });
+        
+        disconnectBtn.addEventListener('click', () => {
+            if (socket) {
+                socket.close(1000, "Deliberately closed");
+                logMessage('Disconnecting...', 'system');
+            }
+        });
+        
+        // Message sending
+        sendBtn.addEventListener('click', () => {
+            if (!socket) {
+                logMessage('Not connected', 'error');
+                return;
+            }
+            
+            const messageType = messageTypeSelect.value;
+            const content = messageContentInput.value.trim();
+            
+            if (!content) {
+                logMessage('Please enter message content', 'error');
+                return;
+            }
+            
+            const message = {
+                type: messageType
+            };
+            
+            if (messageType === 'chat') {
+                message.message = content;
+            } else if (messageType === 'command') {
+                message.command = content;
+            }
+            
+            try {
+                socket.send(JSON.stringify(message));
+                logMessage(`Sent: ${JSON.stringify(message)}`, 'sent');
+                messageContentInput.value = '';
+            } catch (e) {
+                logMessage(`Error sending message: ${e.message}`, 'error');
+            }
+        });
+        
+        // Logging
+        function logMessage(message, type = 'system') {
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            messageLog.appendChild(entry);
+            messageLog.scrollTop = messageLog.scrollHeight;
+        }
+        
+        clearLogBtn.addEventListener('click', () => {
+            messageLog.innerHTML = '';
+        });
+        
+        // Allow pressing Enter in message input to send
+        messageContentInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !sendBtn.disabled) {
+                sendBtn.click();
+            }
+        });
+    </script>
+</body>
+</html> 

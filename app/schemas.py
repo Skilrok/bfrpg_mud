@@ -215,3 +215,64 @@ class Hireling(HirelingBase):
     class Config:
         from_attributes = True
         orm_mode = True  # Include this for backward compatibility with older versions
+
+
+# New Item Type Enum for the inventory system
+class ItemType(str, Enum):
+    WEAPON = "weapon"
+    ARMOR = "armor"
+    SHIELD = "shield"
+    POTION = "potion"
+    SCROLL = "scroll"
+    WAND = "wand"
+    RING = "ring"
+    AMMUNITION = "ammunition"
+    TOOL = "tool"
+    CONTAINER = "container"
+    CLOTHING = "clothing"
+    FOOD = "food"
+    MISCELLANEOUS = "miscellaneous"
+
+
+# Item base schema
+class ItemBase(BaseModel):
+    name: str
+    description: str
+    item_type: ItemType
+    value: int  # Value in gold pieces
+    weight: float  # Weight in pounds
+    properties: Dict[str, Any] = {}  # Flexible field for item-specific properties
+
+
+# Schema for creating new items
+class ItemCreate(ItemBase):
+    pass
+
+
+# Item schema with database ID
+class Item(ItemBase):
+    id: int
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+
+# Schema for inventory items (items in a character's inventory)
+class InventoryItem(BaseModel):
+    item_id: int
+    quantity: int = 1
+    equipped: bool = False
+    slot: Optional[str] = None  # Equipment slot if equipped
+
+
+# Schema for adding items to inventory
+class AddInventoryItem(BaseModel):
+    item_id: int
+    quantity: int = 1
+
+
+# Schema for equipping items
+class EquipItem(BaseModel):
+    item_id: int
+    slot: str

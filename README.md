@@ -1,6 +1,26 @@
 # BFRPG MUD
 
-A text-based multiplayer roleplaying game built with FastAPI.
+A text-based multiplayer dungeon roleplaying game built with FastAPI and a classic terminal-style UI.
+
+## Current Status (April 2024)
+
+- ✅ Authentication system with JWT tokens
+- ✅ User account management
+- ✅ Character system with races, classes, and abilities
+- ✅ Terminal-style UI with retro effects
+- ✅ Login and registration pages
+- ✅ Basic game interface
+- 🔄 Hireling system (in progress)
+- 🔄 Inventory system (in progress)
+- 🔄 WebSocket real-time communication (in progress)
+
+## Next Steps
+
+1. Implement game command API
+2. Complete character creation interface
+3. Implement WebSocket for real-time updates
+4. Build basic room navigation system
+5. Develop combat mechanics
 
 ## Features
 
@@ -39,6 +59,7 @@ uvicorn app.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
+The game interface will be at `http://localhost:8000/static/login.html`
 
 ## API Documentation
 
@@ -57,8 +78,20 @@ bfrpg-mud/
 │   ├── models.py             # SQLAlchemy models
 │   ├── schemas.py            # Pydantic schemas
 │   ├── database.py           # DB configuration
-│   └── routes/               # API endpoints
+│   ├── utils.py              # Utility functions
+│   └── routers/              # API endpoints
+│       ├── auth.py           # Authentication
+│       ├── users.py          # User management
+│       ├── characters.py     # Character management
+│       ├── items.py          # Item system
+│       ├── hirelings.py      # Hireling system
+│       └── websocket.py      # WebSocket communication
 ├── static/                   # Frontend assets
+│   ├── login.html            # Login/register page
+│   └── game.html             # Main game interface
+├── tests/                    # Test suite
+├── alembic/                  # Database migrations
+├── docs/                     # Documentation
 ├── .env                      # Environment variables
 ├── requirements.txt          # Dependencies
 └── README.md

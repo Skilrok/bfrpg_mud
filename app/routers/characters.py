@@ -183,6 +183,13 @@ async def create_character(
             db.add(db_character)
             db.commit()
             db.refresh(db_character)
+            
+            # Add starting equipment based on character class
+            add_starting_equipment(db, db_character)
+            
+            # Refresh again to get the updated inventory
+            db.refresh(db_character)
+            
             # Convert SQLAlchemy model to Pydantic model
             return schemas.Character.from_orm(db_character)
         except Exception as e:
@@ -299,3 +306,138 @@ def calculate_racial_abilities(race: schemas.CharacterRace) -> List[str]:
         ])
     
     return abilities
+
+
+def add_starting_equipment(db: Session, character: models.Character):
+    """Add starting equipment to a character based on their class"""
+    try:
+        # Common equipment for all classes
+        common_items = [
+            {"name": "Backpack", "type": models.ItemType.CONTAINER},
+            {"name": "Rations (1 day)", "type": models.ItemType.FOOD, "quantity": 5},
+            {"name": "Torch", "type": models.ItemType.TOOL, "quantity": 3},
+            {"name": "Pouch", "type": models.ItemType.CONTAINER}
+        ]
+
+        # Class-specific equipment
+        class_items = {
+            models.CharacterClass.FIGHTER: [
+                {"name": "Longsword", "type": models.ItemType.WEAPON},
+                {"name": "Chain Mail", "type": models.ItemType.ARMOR},
+                {"name": "Wooden Shield", "type": models.ItemType.SHIELD}
+            ],
+            models.CharacterClass.CLERIC: [
+                {"name": "Warhammer", "type": models.ItemType.WEAPON},
+                {"name": "Chain Mail", "type": models.ItemType.ARMOR},
+                {"name": "Wooden Shield", "type": models.ItemType.SHIELD}
+            ],
+            models.CharacterClass.MAGIC_USER: [
+                {"name": "Dagger", "type": models.ItemType.WEAPON},
+                {"name": "Staff", "type": models.ItemType.WEAPON},
+                {"name": "Leather Armor", "type": models.ItemType.ARMOR}
+            ],
+            models.CharacterClass.THIEF: [
+                {"name": "Shortsword", "type": models.ItemType.WEAPON},
+                {"name": "Leather Armor", "type": models.ItemType.ARMOR},
+                {"name": "Thieves' Tools", "type": models.ItemType.TOOL}
+            ],
+            models.CharacterClass.FIGHTER_MAGIC_USER: [  # Elf fighter/magic-user
+                {"name": "Longsword", "type": models.ItemType.WEAPON},
+                {"name": "Leather Armor", "type": models.ItemType.ARMOR},
+                {"name": "Shortbow", "type": models.ItemType.WEAPON},
+                {"name": "Arrows (20)", "type": models.ItemType.AMMUNITION}
+            ],
+            models.CharacterClass.MAGIC_USER_THIEF: [  # Elf magic-user/thief
+                {"name": "Dagger", "type": models.ItemType.WEAPON},
+                {"name": "Thieves' Tools", "type": models.ItemType.TOOL},
+                {"name": "Leather Armor", "type": models.ItemType.ARMOR}
+            ]
+        }
+
+        # Get items for this character's class
+        items_to_add = common_items + class_items.get(character.character_class, [])
+        
+        # Initialize inventory if needed
+        if not character.inventory:
+            character.inventory = {}
+            
+        # Add each item to the character's inventory
+        for item_data in items_to_add:
+            # Find the item in the database
+            item = db.query(models.Item).filter(
+                models.Item.name == item_data["name"],
+                models.Item.item_type == item_data["type"]
+            ).first()
+            
+            if item:
+                quantity = item_data.get("quantity", 1)
+                item_id_str = str(item.id)
+                
+                # Add to inventory or increment quantity
+                if item_id_str in character.inventory:
+                    character.inventory[item_id_str]["quantity"] += quantity
+                else:
+                    character.inventory[item_id_str] = {
+                        "item_id": item.id,
+                        "quantity": quantity,
+                        "equipped": False,
+                        "slot": None
+                    }
+        
+        # Auto-equip basic armor and weapon
+        equip_starting_items(character)
+                
+        # Save changes
+        db.commit()
+            
+    except Exception as e:
+        print(f"Error adding starting equipment: {e}")
+        traceback.print_exc()
+        raise
+
+
+def equip_starting_items(character: models.Character):
+    """Automatically equip basic armor and weapon from inventory"""
+    try:
+        # Initialize equipment if needed
+        if not character.equipment:
+            character.equipment = {}
+            
+        # Track what slots we've already equipped
+        equipped_slots = set()
+        
+        # Iterate through inventory
+        for item_id_str, item_data in character.inventory.items():
+            # Skip already equipped items
+            if item_data.get("equipped", False):
+                continue
+                
+            # Get item type from the item data
+            # We need to determine appropriate slots
+            item_type_map = {
+                models.ItemType.WEAPON.value: "main_hand",
+                models.ItemType.ARMOR.value: "body",
+                models.ItemType.SHIELD.value: "off_hand"
+            }
+            
+            # Get just the first few basic items equipped
+            for item_type_str, slot in item_type_map.items():
+                # Skip if we already equipped something in this slot
+                if slot in equipped_slots:
+                    continue
+                    
+                # Get actual item from database to check type
+                # For simplicity, we're assuming the type is included in the item properties
+                # In a real implementation, you'd query the database for the item
+                if str(item_type_str) in str(item_data):
+                    # Equip this item
+                    character.equipment[slot] = int(item_id_str)
+                    item_data["equipped"] = True
+                    item_data["slot"] = slot
+                    equipped_slots.add(slot)
+                    break
+                    
+    except Exception as e:
+        print(f"Error equipping starting items: {e}")
+        traceback.print_exc()
+        raise
