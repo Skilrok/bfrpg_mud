@@ -33,7 +33,8 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends libpq5 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && pip install --no-cache /wheels/*
+    && pip install --no-cache /wheels/* \
+    && pip install email-validator
 
 # Copy application code
 COPY app app/
@@ -49,4 +50,4 @@ USER appuser
 EXPOSE 8000
 
 # Run migrations and start the application
-CMD alembic upgrade head && gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 
+CMD ["sh", "-c", "alembic upgrade head && gunicorn app.main:app --workers 4 --worker-class uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000"] 
