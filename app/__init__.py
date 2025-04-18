@@ -1,3 +1,3 @@
 """
-BFRPG MUD - A text-based multiplayer roleplaying game
+BFRPG MUD - A Basic Fantasy RPG Multi-User Dungeon
 """ 
