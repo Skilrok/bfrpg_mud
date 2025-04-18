@@ -1,107 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
-from app import models, schemas
-from app.database import Base, get_db
-from app.main import app
-from app.routers.auth import get_current_user
+from app import models
 import os
-import uuid
 
-# Create a separate test database for hirelings tests
-TEST_DB_PATH = "test_hirelings.db"
-if os.path.exists(TEST_DB_PATH):
-    try:
-        os.remove(TEST_DB_PATH)
-    except PermissionError:
-        pass
+# Make sure tests run in test environment
+os.environ["TESTING"] = "True"
 
-TEST_DATABASE_URL = f"sqlite:///./{TEST_DB_PATH}"
-engine = create_engine(
-    TEST_DATABASE_URL, connect_args={"check_same_thread": False}
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create tables
-Base.metadata.create_all(bind=engine)
-
-# Override the get_db dependency for these tests
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-app.dependency_overrides[get_db] = override_get_db
-
-client = TestClient(app)
-
-@pytest.fixture
-def db_session():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-@pytest.fixture(scope="module")
-def test_user():
-    # Create a unique user for this test module
-    unique_id = uuid.uuid4().hex[:8]
-    username = f"testuser_{unique_id}"
-    email = f"test_{unique_id}@example.com"
-    
-    db = next(override_get_db())
-    user = models.User(
-        username=username,
-        email=email,
-        hashed_password="hashedpassword",
-        is_active=True
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    
-    # Override the auth dependency
-    async def get_test_current_user():
-        return user
-    
-    app.dependency_overrides[get_current_user] = get_test_current_user
-    
-    return user
-
-@pytest.fixture
-def test_character(db_session, test_user):
-    character = models.Character(
-        name="Test Character",
-        user_id=test_user.id,
-        level=1,
-        experience=0,
-        race=models.CharacterRace.HUMAN,
-        character_class=models.CharacterClass.FIGHTER,
-        strength=10,
-        intelligence=10,
-        wisdom=10,
-        dexterity=10,
-        constitution=10,
-        charisma=10,
-        hit_points=6,
-        armor_class=10
-    )
-    db_session.add(character)
-    db_session.commit()
-    db_session.refresh(character)
-    return character
-
-@pytest.fixture
-def auth_headers(test_user):
-    # Generate token directly
-    return {"Authorization": f"Bearer test_token_for_{test_user.id}"}
-
-def test_create_hireling(client, auth_headers, db_session, test_user):
+def test_create_hireling(client, auth_headers, test_db, test_user):
+    """Test creating a new hireling"""
     response = client.post(
         "/api/hirelings/",
         headers=auth_headers,
@@ -118,31 +25,41 @@ def test_create_hireling(client, auth_headers, db_session, test_user):
     assert data["character_class"] == "fighter"
     assert data["loyalty"] == 50.0
 
-@pytest.mark.skip(reason="Hireling endpoint needs to be fixed")
-def test_hire_hireling(client, auth_headers, db_session, test_user, test_character):
-    # Create a hireling
+def test_hire_hireling(client, auth_headers, test_db, test_user, test_character):
+    """Test hiring a hireling for a character"""
+    # Print debug info about the character
+    print(f"Test character ID: {test_character.id}, User ID: {test_user.id}")
+    print(f"Character details: race={test_character.race}, class={test_character.character_class}")
+    
+    # Create a hireling directly in the database
     hireling = models.Hireling(
         name="Test Hireling",
         character_class="fighter",
         user_id=test_user.id,
         is_available=True
     )
-    db_session.add(hireling)
-    db_session.commit()
-    db_session.refresh(hireling)
+    test_db.add(hireling)
+    test_db.commit()
+    test_db.refresh(hireling)
+    
+    print(f"Created hireling with ID: {hireling.id}, User ID: {hireling.user_id}")
 
     # Hire the hireling
     response = client.put(
         f"/api/hirelings/{hireling.id}/hire/{test_character.id}",
         headers=auth_headers
     )
+    print(f"Response status: {response.status_code}")
+    print(f"Response content: {response.content}")
+    
     assert response.status_code == 200
     data = response.json()
     assert data["master_id"] == test_character.id
     assert data["is_available"] == False
 
-def test_pay_hireling(client, auth_headers, db_session, test_user):
-    # Create a hireling
+def test_pay_hireling(client, auth_headers, test_db, test_user):
+    """Test paying a hireling"""
+    # Create a hireling with unpaid days
     hireling = models.Hireling(
         name="Test Hireling Pay",
         character_class="fighter",
@@ -151,9 +68,9 @@ def test_pay_hireling(client, auth_headers, db_session, test_user):
         days_unpaid=5,
         is_available=True
     )
-    db_session.add(hireling)
-    db_session.commit()
-    db_session.refresh(hireling)
+    test_db.add(hireling)
+    test_db.commit()
+    test_db.refresh(hireling)
 
     # Pay the hireling
     response = client.put(
@@ -165,8 +82,8 @@ def test_pay_hireling(client, auth_headers, db_session, test_user):
     assert data["days_unpaid"] == 0
     assert data["loyalty"] > 50.0  # Should have increased from base 50.0
 
-@pytest.mark.skip(reason="Hireling endpoint needs to be fixed")
-def test_reward_hireling(client, auth_headers, db_session, test_user):
+def test_reward_hireling(client, auth_headers, test_db, test_user):
+    """Test rewarding a hireling"""
     # Create a hireling
     hireling = models.Hireling(
         name="Test Hireling Reward",
@@ -174,9 +91,9 @@ def test_reward_hireling(client, auth_headers, db_session, test_user):
         user_id=test_user.id,
         is_available=True
     )
-    db_session.add(hireling)
-    db_session.commit()
-    db_session.refresh(hireling)
+    test_db.add(hireling)
+    test_db.commit()
+    test_db.refresh(hireling)
 
     # Reward the hireling
     response = client.put(
@@ -187,8 +104,8 @@ def test_reward_hireling(client, auth_headers, db_session, test_user):
     data = response.json()
     assert data["loyalty"] > 50.0  # Should have increased from base 50.0
 
-@pytest.mark.skip(reason="Hireling endpoint needs to be fixed")
-def test_loyalty_decrease_unpaid(client, auth_headers, db_session, test_user):
+def test_loyalty_decrease_unpaid(client, auth_headers, test_db, test_user):
+    """Test hireling loyalty decreases when unpaid"""
     # Create a hireling with old payment date
     hireling = models.Hireling(
         name="Test Hireling Loyalty",
@@ -198,9 +115,9 @@ def test_loyalty_decrease_unpaid(client, auth_headers, db_session, test_user):
         days_unpaid=0,
         is_available=True
     )
-    db_session.add(hireling)
-    db_session.commit()
-    db_session.refresh(hireling)
+    test_db.add(hireling)
+    test_db.commit()
+    test_db.refresh(hireling)
 
     # Get the hireling to trigger loyalty update
     response = client.get(
@@ -211,9 +128,3 @@ def test_loyalty_decrease_unpaid(client, auth_headers, db_session, test_user):
     data = response.json()
     assert data["loyalty"] < 50.0  # Should have decreased from base 50.0
     assert data["days_unpaid"] == 10
-
-def teardown_module(module):
-    # Dispose of the engine
-    engine.dispose()
-    # Remove overrides
-    app.dependency_overrides.clear()

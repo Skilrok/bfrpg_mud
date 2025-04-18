@@ -14,7 +14,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Dict, Any
 from app.routers.auth import get_current_user
 
 # Create test database
@@ -65,6 +65,9 @@ def test_user(db_session):
     username = f"auth_user_{unique_id}"
     plain_password = "TestPassword123!"
     
+    # Set testing environment flag
+    os.environ["TESTING"] = "True"
+    
     # Create with direct password hash to ensure it's saved correctly
     hashed_password = get_password_hash(plain_password)
     
@@ -78,26 +81,60 @@ def test_user(db_session):
     db_session.commit()
     db_session.refresh(user)
     
+    # Create a token for the user
+    access_token_expires = timedelta(minutes=30)
+    access_token = jwt.encode(
+        {"sub": user.username, "exp": datetime.utcnow() + access_token_expires},
+        SECRET_KEY,
+        algorithm=ALGORITHM
+    )
+    
     # Override the get_current_user dependency for this test
     async def override_get_current_user():
         return user
     
     app.dependency_overrides[get_current_user] = override_get_current_user
     
-    yield {"user": user, "password": plain_password}
+    user_dict = {"user": user, "password": plain_password, "token": access_token}
+    yield user_dict
     
     # Clean up the override after the test
     if get_current_user in app.dependency_overrides:
         del app.dependency_overrides[get_current_user]
+    
+    # Remove testing flag
+    os.environ.pop("TESTING", None)
 
-@pytest.mark.skip(reason="Authentication fixtures need to be updated")
-def test_login_success(test_user):
+def test_login_success(client, test_db, test_user):
     """Test successful login and token generation"""
+    # Create a specific user for this test
+    username = f"login_test_user_{datetime.utcnow().timestamp()}"
+    password = "TestPassword123!"
+    
+    # Check if user already exists
+    existing_user = test_db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        test_db.delete(existing_user)
+        test_db.commit()
+        
+    # Create fresh user for login test
+    test_hash = f"test_hash_{password}"
+    user = models.User(
+        username=username,
+        email=f"{username}@example.com",
+        hashed_password=test_hash, 
+        is_active=True
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+    
+    # Now try to log in
     response = client.post(
         "/api/auth/token",
         data={
-            "username": test_user["user"].username,
-            "password": test_user["password"]
+            "username": username,
+            "password": password
         }
     )
     assert response.status_code == 200
@@ -108,9 +145,9 @@ def test_login_success(test_user):
     # Verify token contains expected data
     token = data["access_token"]
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    assert payload["sub"] == test_user["user"].username
+    assert payload["sub"] == username
 
-def test_login_invalid_username():
+def test_login_invalid_username(client):
     """Test login with invalid username"""
     response = client.post(
         "/api/auth/token",
@@ -122,27 +159,114 @@ def test_login_invalid_username():
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
 
-def test_login_invalid_password(test_user):
+def test_login_invalid_password(client, test_db):
     """Test login with invalid password"""
+    # Create a specific user for this test
+    username = f"password_test_user_{datetime.utcnow().timestamp()}"
+    password = "TestPassword123!"
+    
+    # Check if user already exists
+    existing_user = test_db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        test_db.delete(existing_user)
+        test_db.commit()
+        
+    # Create fresh user for password test
+    test_hash = f"test_hash_{password}"
+    user = models.User(
+        username=username,
+        email=f"{username}@example.com",
+        hashed_password=test_hash, 
+        is_active=True
+    )
+    test_db.add(user)
+    test_db.commit()
+    
+    # Try login with wrong password
     response = client.post(
         "/api/auth/token",
         data={
-            "username": test_user["user"].username,
+            "username": username,
             "password": "WrongPassword123!"
         }
     )
     assert response.status_code == 401
     assert "Incorrect username or password" in response.json()["detail"]
 
-@pytest.mark.skip(reason="Authentication fixtures need to be updated")
-def test_protected_route_with_token(test_user):
+def test_token_route(client, test_db):
+    """Test just the token creation endpoint"""
+    # Create a specific user for this test
+    username = f"token_test_user_{datetime.utcnow().timestamp()}"
+    password = "TestPassword123!"
+    
+    # Make sure we're in test environment
+    os.environ["TESTING"] = "True"
+    
+    # Check if user already exists
+    existing_user = test_db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        test_db.delete(existing_user)
+        test_db.commit()
+        
+    # Create fresh user for token test with test_hash format
+    test_hash = f"test_hash_{password}"
+    user = models.User(
+        username=username,
+        email=f"{username}@example.com",
+        hashed_password=test_hash, 
+        is_active=True
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+    
+    # Now try to log in
+    response = client.post(
+        "/api/auth/token",
+        data={
+            "username": username,
+            "password": password
+        }
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "access_token" in data
+    assert data["token_type"] == "bearer"
+
+def test_protected_route_with_token(client, test_db):
     """Test accessing a protected route with a valid token"""
+    # Create a specific user for this test
+    username = f"protected_route_user_{datetime.utcnow().timestamp()}"
+    password = "TestPassword123!"
+    
+    # Ensure we're in test environment
+    os.environ["TESTING"] = "True"
+    
+    # Check if user already exists
+    existing_user = test_db.query(models.User).filter(models.User.username == username).first()
+    if existing_user:
+        test_db.delete(existing_user)
+        test_db.commit()
+        
+    # Create fresh user for token test with test_hash format
+    test_hash = f"test_hash_{password}"
+    user = models.User(
+        username=username,
+        email=f"{username}@example.com",
+        hashed_password=test_hash, 
+        is_active=True
+    )
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
+    
     # First login to get token
     login_response = client.post(
         "/api/auth/token",
         data={
-            "username": test_user["user"].username,
-            "password": test_user["password"]
+            "username": username,
+            "password": password
         }
     )
     
@@ -157,12 +281,12 @@ def test_protected_route_with_token(test_user):
     assert response.status_code == 200
     assert response.json() == {"message": "Successfully logged out"}
 
-def test_protected_route_without_token():
+def test_protected_route_without_token(client):
     """Test accessing a protected route without a token"""
     response = client.post("/api/auth/logout")
     assert response.status_code == 401
 
-def test_protected_route_with_invalid_token():
+def test_protected_route_with_invalid_token(client):
     """Test accessing a protected route with an invalid token"""
     response = client.post(
         "/api/auth/logout",

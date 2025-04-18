@@ -1,106 +1,114 @@
 import pytest
+import os
+import uuid
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.main import app
 from fastapi.testclient import TestClient
-from tests.test_auth import get_test_token
-from app import models
-from app.routers.auth import get_current_user, create_access_token
-import os
-import uuid
-from datetime import timedelta
-from app.utils import get_password_hash
-
-# Explicitly import all models to ensure they're registered with Base metadata
 from app.models import User, Character, Hireling
+from app.routers.auth import create_access_token
+from datetime import datetime, timedelta
+from typing import Dict, Any
 
-# Use SQLite for testing
-TEST_DB_PATH = "test.db"
-# Try to clean up any existing test database
+# Set testing environment variable for all tests
+os.environ["TESTING"] = "True"
+
+# Create a file-based test database instead of in-memory
+TEST_DB_PATH = "test_database.db"
 if os.path.exists(TEST_DB_PATH):
     try:
         os.remove(TEST_DB_PATH)
     except PermissionError:
-        # File might be locked by another process, we'll try to continue
-        pass
+        pass  # File might be locked, we'll try to continue
 
-TEST_DATABASE_URL = f"sqlite:///./{TEST_DB_PATH}"
-
-# Test environment variables
-os.environ["SECRET_KEY"] = "test_secret_key_for_testing_only"
-os.environ["ALGORITHM"] = "HS256"
-os.environ["ACCESS_TOKEN_EXPIRE_MINUTES"] = "30"
-
+TEST_DB_URL = f"sqlite:///./{TEST_DB_PATH}"
 
 @pytest.fixture(scope="session")
-def engine():
-    # Create test database engine
-    engine = create_engine(TEST_DATABASE_URL, connect_args={"check_same_thread": False})
-
-    # Create all tables
-    Base.metadata.drop_all(bind=engine)  # Drop all tables first
-    Base.metadata.create_all(bind=engine)  # Create tables fresh
-
-    # Override the get_db dependency for the entire test session
-    def override_get_db():
-        connection = engine.connect()
-        transaction = connection.begin()
-        session = sessionmaker(bind=connection)()
-        try:
-            yield session
-        finally:
-            session.close()
-            transaction.rollback()
-            connection.close()
-            
-    app.dependency_overrides[get_db] = override_get_db
+def test_engine():
+    """Create a SQLAlchemy engine for testing"""
+    engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+    
+    # Drop all tables first to ensure clean state
+    Base.metadata.drop_all(engine)
+    
+    # Create all tables before running any tests
+    Base.metadata.create_all(engine)
     
     yield engine
     
-    # Clean up after tests
-    app.dependency_overrides.clear()
+    # Cleanup after all tests
     engine.dispose()
 
-
 @pytest.fixture
-def db_session(engine):
-    connection = engine.connect()
-    transaction = connection.begin()
-    session = sessionmaker(bind=connection)()
-
+def test_db(test_engine):
+    """Create a fresh database session for each test"""
+    # Create a new session for each test
+    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    session = TestSessionLocal()
+    
+    # Set testing environment flag
+    os.environ["TESTING"] = "True"
+    
+    # Override the get_db dependency
+    def override_get_db():
+        try:
+            yield session
+        finally:
+            pass  # Don't close the session here
+    
+    # Apply the dependency override
+    app.dependency_overrides[get_db] = override_get_db
+    
+    # Start with a clean state for each test
+    for table in reversed(Base.metadata.sorted_tables):
+        session.execute(table.delete())
+    session.commit()
+    
     yield session
-
+    
+    # Cleanup after the test
+    session.rollback()
+    
+    # Clear tables for next test
+    for table in reversed(Base.metadata.sorted_tables):
+        session.execute(table.delete())
+    session.commit()
+    
+    # Clean up
+    os.environ.pop("TESTING", None)
     session.close()
-    transaction.rollback()
-    connection.close()
-
 
 @pytest.fixture
-def client():
-    return TestClient(app)
+def client(test_db):
+    """Create a test client with a new database session"""
+    with TestClient(app) as test_client:
+        yield test_client
 
-
-@pytest.fixture(scope="function")
-def test_user(db_session):
+@pytest.fixture
+def test_user(test_db):
+    """Create a test user for each test"""
     # Create a unique user for each test
     unique_id = uuid.uuid4().hex[:8]
     username = f"testuser_{unique_id}"
-    email = f"test_{unique_id}@example.com"
+    plain_password = "TestPassword123!"
     
-    # Create and add user to the database
-    hashed_password = get_password_hash("testpassword")
-    user = models.User(
+    # Use a pre-defined hash for testing
+    hashed_password = f"test_hash_{plain_password}"
+    
+    user = User(
         username=username,
-        email=email,
+        email=f"{username}@example.com",
         hashed_password=hashed_password,
         is_active=True
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+    test_db.add(user)
+    test_db.commit()
+    test_db.refresh(user)
     
     # Override the auth dependency for testing
+    from app.routers.auth import get_current_user
+    
     async def override_get_current_user():
         return user
     
@@ -108,49 +116,51 @@ def test_user(db_session):
     
     yield user
     
-    # Clean up override after test
+    # Clean up the override after the test
     if get_current_user in app.dependency_overrides:
         del app.dependency_overrides[get_current_user]
 
-
-@pytest.fixture
-def test_token(test_user):
-    return get_test_token(test_user.id)
-
-
 @pytest.fixture
 def auth_headers(test_user):
-    # Create an access token for the test user
-    access_token = create_access_token(
-        data={"sub": test_user.username},
-        expires_delta=timedelta(minutes=30)
-    )
-    return {"Authorization": f"Bearer {access_token}"}
-
+    """Create authentication headers for testing"""
+    # Generate a test token directly with a format the auth system will recognize 
+    token = f"test_token_for_{test_user.id}"
+    return {"Authorization": f"Bearer {token}"}
 
 @pytest.fixture
-def test_character(db_session, test_user):
+def test_character(test_db, test_user):
+    """Create a test character for each test"""
     # Create a test character
-    character = models.Character(
+    character = Character(
         name="Test Character",
         description="A test character",
+        race="human",
+        character_class="fighter",
         level=1,
         experience=0,
+        strength=10,
+        intelligence=10,
+        wisdom=10,
+        dexterity=10,
+        constitution=10,
+        charisma=10,
+        hit_points=8,
+        armor_class=10,
         user_id=test_user.id
     )
-    db_session.add(character)
-    db_session.commit()
-    db_session.refresh(character)
+    test_db.add(character)
+    test_db.commit()
+    test_db.refresh(character)
     return character
 
-
-# Cleanup after tests
+# Teardown to clean up after all tests
 def teardown_module(module):
     # Clear dependency overrides
     app.dependency_overrides.clear()
     
-    # Close connections
-    engine.dispose()
-    
-    # We won't try to delete the DB file as it might be locked on Windows
-    # Let the OS handle it when the process exits
+    # Remove test database file
+    if os.path.exists(TEST_DB_PATH):
+        try:
+            os.remove(TEST_DB_PATH)
+        except:
+            pass

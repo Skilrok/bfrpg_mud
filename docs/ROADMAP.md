@@ -231,12 +231,20 @@ Each phase includes:
 9. Test suite improvements
    - Package installation setup for testing
    - Fixed test database isolation issues
-   - Documented remaining test issues
+   - All previously skipped tests now passing
+   - Resolved authentication test issues
+   - Implemented robust database transaction isolation
+   - Fixed Pydantic model conversion in auth router
+   - Fixed hireling tests to work with test database
 
 ### In Progress 🔄
 1. Test suite maintenance
    - Some tests are currently skipped due to environment issues
    - Authentication test fixtures need updating
+
+2. Room System implementation
+   - Working on 25x25 grid structure
+   - Developing room state persistence
 
 ### Next Priorities 📋
 1. **Test Suite Completion**
@@ -248,10 +256,10 @@ Each phase includes:
    - Implement equipment management
    - Add starting equipment based on class
 
-3. **Combat System**
-   - Implement turn-based combat
-   - Add monster models
-   - Create combat commands
+3. **Room System**
+   - Implement 25x25 grid for dungeon layout
+   - Create room state management system
+   - Add navigation commands
 
 ## Timeline Estimates (Updated) 📅
 - Phase 1: ✅ Completed

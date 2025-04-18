@@ -86,75 +86,59 @@ def test_register_user_password_mismatch():
     )
     assert response.status_code == 422  # Validation error
 
-@pytest.mark.skip(reason="Test environment needs separate database")
-def test_register_duplicate_username(db_session):
-    """Test registration with a duplicate username"""
-    # Create a user first
-    unique_id = uuid.uuid4().hex[:8]
-    username = f"duplicate_user_{unique_id}"
+def test_register_duplicate_username(client, test_db):
+    """Test that registering a user with a duplicate username fails"""
+    # Create a user directly in the database
+    username = "duplicate_username_test"
     user = models.User(
         username=username,
-        email=f"original_{unique_id}@example.com",
-        hashed_password=get_password_hash("TestPassword123!"),
+        email="unique_email@example.com",
+        hashed_password="hashed_password",
         is_active=True
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+    test_db.add(user)
+    test_db.commit()
     
-    # Try to register with the same username - manually construct request to ensure it uses our test DB
-    db = next(override_get_db())
-    
-    # Verify user exists in DB
-    db_user = db.query(models.User).filter(models.User.username == username).first()
-    assert db_user is not None
-    
-    # Now try the registration
+    # Try to register a new user with the same username
     response = client.post(
         "/api/users/register",
         json={
             "username": username,
-            "email": f"another_{unique_id}@example.com",
-            "password": "TestPassword123!",
-            "password_confirm": "TestPassword123!"
+            "email": "different_email@example.com",
+            "password": "Password123!",
+            "password_confirm": "Password123!"
         }
     )
+    
     assert response.status_code == 400
-    assert "Username already registered" in response.json()["detail"]
+    assert "already registered" in response.json()["detail"]
 
-@pytest.mark.skip(reason="Test environment needs separate database")
-def test_register_duplicate_email(db_session):
-    """Test registration with a duplicate email"""
-    # Create a user first
-    unique_id = uuid.uuid4().hex[:8]
-    email = f"duplicate_{unique_id}@example.com"
+def test_register_duplicate_email(client, test_db):
+    """Test that registering a user with a duplicate email fails"""
+    # Create a user directly in the database
+    email = "duplicate_email@example.com"
     user = models.User(
-        username=f"original_user_{unique_id}",
+        username="unique_username_test",
         email=email,
-        hashed_password=get_password_hash("TestPassword123!"),
+        hashed_password="hashed_password",
         is_active=True
     )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
+    test_db.add(user)
+    test_db.commit()
     
-    # Verify user exists in DB
-    db = next(override_get_db())
-    db_user = db.query(models.User).filter(models.User.email == email).first()
-    assert db_user is not None
-    
-    # Try to register with the same email
+    # Try to register a new user with the same email
     response = client.post(
         "/api/users/register",
         json={
-            "username": f"another_user_{unique_id}",
+            "username": "different_username",
             "email": email,
-            "password": "TestPassword123!",
-            "password_confirm": "TestPassword123!"
+            "password": "Password123!",
+            "password_confirm": "Password123!"
         }
     )
+    
     assert response.status_code == 400
-    assert "Email already registered" in response.json()["detail"]
+    assert "already registered" in response.json()["detail"]
 
 # Add cleanup function to delete the test database
 def teardown_module(module):

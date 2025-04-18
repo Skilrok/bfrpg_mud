@@ -35,7 +35,7 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # Add this for backwards compatibility with older versions
+        orm_mode = True  # For compatibility with older Pydantic versions
 
 
 class CharacterRace(str, Enum):

@@ -80,3 +80,44 @@ def teardown_module(module):
     engine.dispose()
     # We won't try to delete the file as it might still be locked on Windows
     # Just let the OS handle it when the process exits
+
+# Test client
+client = TestClient(app)
+
+def test_get_hirelings():
+    # Ensure we're in test environment
+    os.environ["TESTING"] = "True"
+    
+    # Get or create the test user
+    db = next(override_get_db())
+    user = db.query(models.User).filter(models.User.username == "testuser").first()
+    
+    if user is None:
+        # Create a test user
+        user = models.User(
+            username="testuser",
+            email="test@example.com",
+            hashed_password="test_hash_password",
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    
+    # Ensure user exists
+    assert user is not None
+    assert user.id is not None
+    
+    # Create test token
+    token = f"test_token_for_{user.id}"
+    
+    # Create authenticated headers
+    headers = {"Authorization": f"Bearer {token}"}
+    
+    # Make request with auth headers
+    response = client.get("/api/hirelings/", headers=headers)
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+    
+    # Clean up
+    os.environ.pop("TESTING", None)
