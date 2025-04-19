@@ -1,102 +1,134 @@
-# BFRPG MUD
+# BFRPG MUD - Basic Fantasy Role-Playing Game Multi-User Dungeon
 
-A text-based multiplayer dungeon roleplaying game built with FastAPI and a classic terminal-style UI.
+A text-based multi-user dungeon (MUD) game based on the Basic Fantasy Role-Playing Game system.
 
-## Current Status (April 2024)
+## 🚀 Features
 
-- ✅ Authentication system with JWT tokens
-- ✅ User account management
-- ✅ Character system with races, classes, and abilities
-- ✅ Terminal-style UI with retro effects
-- ✅ Login and registration pages
-- ✅ Basic game interface
-- 🔄 Hireling system (in progress)
-- 🔄 Inventory system (in progress)
-- 🔄 WebSocket real-time communication (in progress)
+- **Character Creation**: Create and customize characters based on BFRPG rules
+- **Text-based Exploration**: Navigate a fantasy world through text commands
+- **Combat System**: Turn-based combat with dice rolls and BFRPG mechanics
+- **Inventory Management**: Collect, equip, and manage items
+- **Hireling System**: Recruit NPCs to join your adventure
+- **Multi-User Experience**: Interact with other players in the game world
 
-## Next Steps
+## 🛠️ Technology Stack
 
-1. Implement game command API
-2. Complete character creation interface
-3. Implement WebSocket for real-time updates
-4. Build basic room navigation system
-5. Develop combat mechanics
+- **Backend**: Python (FastAPI), SQLAlchemy, Pydantic
+- **Frontend**: JavaScript (vanilla), HTML/CSS
+- **Database**: PostgreSQL (with SQLite fallback for development/testing)
+- **Test Framework**: `pytest` with `httpx` for API tests
+- **Infrastructure**: Docker, GitHub Actions (CI)
 
-## Features
+## 🔧 Setup & Installation
 
-- User account management
-- Character creation and progression
-- Room-based exploration
-- Real-time chat system
-- Turn-based combat
-- Player journal system
+### Prerequisites
 
-## Setup
+- Python 3.9+
+- PostgreSQL (for production) or SQLite (for development)
+- Node.js and npm (for frontend development)
 
-1. Create a virtual environment:
-```bash
-python -m venv env
-```
+### Installation
 
-2. Activate the virtual environment:
-- Windows:
-```bash
-.\env\Scripts\activate
-```
-- Unix/MacOS:
-```bash
-source env/bin/activate
-```
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/bfrpg_mud.git
+   cd bfrpg_mud
+   ```
+
+2. Create and activate a virtual environment:
+   ```bash
+   python -m venv env
+   # On Windows:
+   env\Scripts\activate
+   # On Unix or MacOS:
+   source env/bin/activate
+   ```
 
 3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. Set up environment variables (or use the defaults in `.env`):
+   ```bash
+   cp .env.example .env
+   # Edit .env with your configuration
+   ```
+
+5. Run database migrations:
+   ```bash
+   alembic upgrade head
+   ```
+
+6. Start the development server:
+   ```bash
+   uvicorn app.main:app --reload
+   ```
+
+7. Access the application:
+   - MUD UI: http://localhost:8000/
+   - API documentation: http://localhost:8000/docs
+
+### Running with Docker
+
 ```bash
-pip install -r requirements.txt
+docker-compose up -d
 ```
 
-4. Run the development server:
+## 🧪 Testing
+
+Run tests with pytest:
+
 ```bash
-uvicorn app.main:app --reload
+pytest
 ```
 
-The API will be available at `http://localhost:8000`
-The game interface will be at `http://localhost:8000/static/login.html`
+Run tests with coverage report:
 
-## API Documentation
-
-Once the server is running, you can access:
-- Interactive API docs: `http://localhost:8000/docs`
-- Alternative API docs: `http://localhost:8000/redoc`
-
-## Project Structure
-
-```
-bfrpg-mud/
-├── env/                      # Virtual environment
-├── app/
-│   ├── __init__.py
-│   ├── main.py               # FastAPI entry point
-│   ├── models.py             # SQLAlchemy models
-│   ├── schemas.py            # Pydantic schemas
-│   ├── database.py           # DB configuration
-│   ├── utils.py              # Utility functions
-│   └── routers/              # API endpoints
-│       ├── auth.py           # Authentication
-│       ├── users.py          # User management
-│       ├── characters.py     # Character management
-│       ├── items.py          # Item system
-│       ├── hirelings.py      # Hireling system
-│       └── websocket.py      # WebSocket communication
-├── static/                   # Frontend assets
-│   ├── login.html            # Login/register page
-│   └── game.html             # Main game interface
-├── tests/                    # Test suite
-├── alembic/                  # Database migrations
-├── docs/                     # Documentation
-├── .env                      # Environment variables
-├── requirements.txt          # Dependencies
-└── README.md
+```bash
+pytest --cov=app
 ```
 
-## License
+## 📚 Development Guidelines
 
-MIT 
+### Code Style
+
+- Follow **PEP8** for formatting
+- Use **type hints** for all functions
+- Group imports: stdlib → third-party → local
+
+### Project Structure
+
+- All endpoints in `/app/routes/`
+- Models in `/app/models.py` or `/app/models/`
+- DB config in `/app/database.py`
+- Constants and enums in `/app/constants.py`
+
+### Git Workflow
+
+- Branch naming: `feature/`, `bugfix/`, `test/`, or `refactor/` prefix
+- Commits: Present-tense, e.g. `Add journal endpoint`
+- PRs must link to issues
+
+## 📝 API Documentation
+
+API documentation is available at `/docs` endpoint when the server is running.
+
+## 📖 Game Documentation
+
+- [Game Rules](docs/RULES.md)
+- [Command Reference](docs/COMMANDS.md)
+- [Character Guide](docs/CHARACTERS.md)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details.
+
+## 📜 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Basic Fantasy Role-Playing Game (BFRPG) creators and community
+- Contributors to the project

@@ -3,8 +3,101 @@ description:
 globs:
 alwaysApply: true
 ---
+This project uses the following stack:
+- **Backend**: Python (FastAPI), SQLAlchemy, Pydantic
+- **Frontend**: JavaScript (vanilla), HTML/CSS
+- **Database**: PostgreSQL (with SQLite fallback for development/testing)
+- **Test Framework**: `pytest` with `httpx` or `async_client` for API tests
+- **Infrastructure**: Docker, GitHub Actions (CI)
 
-# Your rule content
+---
 
-- You can @ files here
-- You can use markdown but dont have to
+## 🐍 Python (Backend)
+
+### Code Style
+- Follow **PEP8** for formatting; use `black` and `isort`
+- Use **type hints** (`def foo(bar: int) -> str:`)
+- Group imports: stdlib → third-party → local
+- Prefer `pathlib.Path` over string paths
+- Use `pydantic.BaseModel` for all request/response schemas
+
+### Structure
+- All endpoints go in `/app/routes/`
+- Models go in `/app/models.py` (or `/app/models/` if large)
+- DB config is handled in `/app/database.py`
+- Constants and enums belong in `/app/constants.py`
+- Avoid business logic in routes—use service functions or utils
+
+### Testing
+- Place all tests under `/tests/`
+- Name tests consistently: `test_<module>_<behavior>()`
+- Use `@pytest.mark.xfail` for expected failures with reasons
+- Use fixtures for DB setup/teardown
+- Use factory functions for mock users, characters, etc.
+
+---
+
+## 🌐 JavaScript + HTML (Frontend)
+
+### Code Style
+- Use **vanilla JS** (no framework) unless otherwise scoped
+- Always declare variables with `let` or `const`, not `var`
+- Prefer `async/await` over `.then()` chains
+- DOM queries use `document.querySelector()` or `getElementById()` only
+- Separate logic from DOM manipulation where possible
+
+### Structure
+- Use `public/` or `static/` for frontend assets
+- Store JS in `/js/` and HTML in `/templates/`
+- Keep UI wireframe synced with `MUD_UI_WIREFRAME.md`
+- Use `fetch()` for backend communication
+- Handle all API errors gracefully and report to the user
+
+---
+
+## 🐘 PostgreSQL (Database)
+
+### Best Practices
+- All production databases use **PostgreSQL**
+- All development/testing uses **SQLite**
+- Use `alembic` or SQLAlchemy Migrations if needed (TBD)
+- Index foreign keys and high-traffic search columns
+- Avoid storing blobs or huge JSON fields
+
+### Schema Design
+- Table names are `snake_case` and plural (`users`, `characters`)
+- All tables must have:
+  - `id SERIAL PRIMARY KEY`
+  - `created_at TIMESTAMP DEFAULT now()`
+  - `updated_at TIMESTAMP DEFAULT now()`
+
+---
+
+## 🧪 Testing Strategy
+
+### Environment Setup
+- Use `.env.test` and `.env.dev` for configuration
+- Use SQLite for all tests
+- Ensure tests do not mutate global state
+
+### Categories of Tests
+- Unit tests (models, helpers)
+- Integration tests (endpoints, multi-model flow)
+- Regression tests (behavior that previously broke)
+
+### CI Enforcement
+- All tests must pass before merging
+- Known failing features must be marked `@xfail`
+- PRs must include test coverage for new functionality
+
+---
+
+## ⚙️ Dev Workflow
+
+| Action | Rule |
+|--------|------|
+| Branch naming | `feature/`, `bugfix/`, `test/`, or `refactor/` prefix |
+| Commits | Present-tense, e.g. `Add journal endpoint` |
+| PRs | Must link to roadmap phase or issue |
+| Linting | Use `pre-commit` with `black`, `flake8`, and `isort` |
+| Deployment | Triggered via GitHub Actions after test pass |
