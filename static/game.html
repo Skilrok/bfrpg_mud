@@ -52,17 +52,28 @@
         .game-container {
             display: flex;
             flex-direction: column;
-            flex: 1;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             padding: 20px;
             z-index: 2;
         }
         
         .header {
+            position: absolute;
+            top: 0;
+            left: 20px;
+            right: 20px;
+            height: 50px;
             display: flex;
             justify-content: space-between;
-            margin-bottom: 10px;
+            align-items: center;
             border-bottom: 1px solid var(--terminal-green);
-            padding-bottom: 10px;
+            padding: 10px 0;
+            background-color: var(--terminal-bg);
+            z-index: 3;
         }
         
         .game-title {
@@ -75,35 +86,51 @@
         }
         
         .terminal {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
+            position: absolute;
+            top: 60px; /* Space for header */
+            left: 20px;
+            right: 20px;
+            bottom: 20px;
             background-color: rgba(0, 10, 0, 0.9);
             border: 2px solid var(--terminal-green);
             border-radius: 5px;
-            padding: 10px;
-            overflow: hidden;
             box-shadow: 0 0 20px var(--glow-color);
-            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
         }
         
         .game-output {
-            flex: 1;
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 50px; /* Height of input area */
             overflow-y: auto;
             padding: 10px;
             white-space: pre-wrap;
             font-family: var(--terminal-font);
+            scrollbar-width: thin;
+            scrollbar-color: var(--terminal-green) var(--terminal-bg);
         }
         
         .command-input-container {
-            display: flex;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background-color: rgba(0, 10, 0, 0.95);
             border-top: 1px solid var(--terminal-green);
-            padding-top: 10px;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
         }
         
         .prompt {
             color: var(--terminal-green);
             margin-right: 10px;
+            font-weight: bold;
         }
         
         #command-input {
@@ -114,6 +141,7 @@
             font-family: var(--terminal-font);
             font-size: 16px;
             outline: none;
+            height: 30px;
         }
         
         .sidebar {
@@ -127,6 +155,11 @@
             padding: 10px;
             box-shadow: 0 0 10px var(--glow-color);
             z-index: 3;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
         }
         
         .sidebar-title {
@@ -136,8 +169,25 @@
             padding-bottom: 5px;
         }
         
-        .character-panel, .inventory-panel {
+        .character-panel, .inventory-panel, .journal-panel {
             margin-bottom: 15px;
+        }
+        
+        .journal-panel {
+            border-top: 1px solid var(--terminal-green);
+            padding-top: 15px;
+        }
+        
+        .journal-content {
+            font-family: var(--terminal-font);
+            font-size: 14px;
+            white-space: pre-wrap;
+            max-height: 200px;
+            overflow-y: auto;
+            padding: 5px;
+            border: 1px solid var(--terminal-green);
+            border-radius: 3px;
+            background-color: rgba(0, 20, 0, 0.3);
         }
         
         .panel-title {
@@ -172,6 +222,37 @@
             pointer-events: none;
             z-index: 1;
         }
+        
+        /* Custom scrollbar for webkit browsers */
+        .game-output::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        .game-output::-webkit-scrollbar-track {
+            background: var(--terminal-bg);
+        }
+        
+        .game-output::-webkit-scrollbar-thumb {
+            background-color: var(--terminal-green);
+            border-radius: 4px;
+        }
+        
+        .journal-entry {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
+        }
+        
+        .entry-date {
+            font-size: 12px;
+            color: rgba(0, 255, 0, 0.7);
+            margin-bottom: 3px;
+        }
+        
+        .entry-text {
+            font-size: 14px;
+            line-height: 1.4;
+        }
     </style>
 </head>
 <body>
@@ -190,10 +271,11 @@
             <div class="game-output" id="game-output">Welcome to the Basic Fantasy Role-Playing Game MUD!
 Type 'help' for a list of commands.
             </div>
-            
-            <div class="command-input-container">
-                <div class="prompt">></div>
-                <input type="text" id="command-input" autocomplete="off" autofocus>
+            <div class="input-area">
+                <div class="command-input-container">
+                    <div class="prompt">></div>
+                    <input type="text" id="command-input" autocomplete="off" autofocus>
+                </div>
             </div>
         </div>
     </div>
@@ -219,6 +301,11 @@ Type 'help' for a list of commands.
                 <li>Loading equipment...</li>
             </ul>
         </div>
+        
+        <div class="journal-panel">
+            <div class="panel-title">Journal</div>
+            <div id="journal-content" class="journal-content">No journal entries yet.</div>
+        </div>
     </div>
 
     <script>
@@ -233,6 +320,7 @@ Type 'help' for a list of commands.
             const characterLevel = document.getElementById('character-level');
             const characterHp = document.getElementById('character-hp');
             const equipmentList = document.getElementById('equipment-list');
+            const journalContent = document.getElementById('journal-content');
             
             // Check if logged in
             const token = localStorage.getItem('token');
@@ -352,8 +440,9 @@ Type 'help' for a list of commands.
                         characterLevel.textContent = `Level: ${data.level}`;
                         characterHp.textContent = `HP: ${data.hit_points}/${data.hit_points}`;
                         
-                        // Load inventory
+                        // Load inventory and journal
                         loadInventory(id);
+                        loadJournal(id);
                         
                         addOutput(`\nCharacter ${data.name} loaded. Welcome back!`);
                     } else {
@@ -396,6 +485,36 @@ Type 'help' for a list of commands.
                 } catch (error) {
                     console.error('Inventory error:', error);
                     equipmentList.innerHTML = '<li>Error loading equipment</li>';
+                }
+            }
+            
+            // Function to load journal entries
+            async function loadJournal(characterId) {
+                try {
+                    const response = await fetch(`/api/characters/${characterId}/journal`, {
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    });
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data && data.entries && data.entries.length > 0) {
+                            journalContent.innerHTML = data.entries.map(entry => 
+                                `<div class="journal-entry">
+                                    <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString()}</div>
+                                    <div class="entry-text">${entry.text}</div>
+                                 </div>`
+                            ).join('\n');
+                        } else {
+                            journalContent.textContent = 'No journal entries yet.';
+                        }
+                    } else {
+                        journalContent.textContent = 'Failed to load journal entries.';
+                    }
+                } catch (error) {
+                    console.error('Journal error:', error);
+                    journalContent.textContent = 'Error loading journal entries.';
                 }
             }
             
