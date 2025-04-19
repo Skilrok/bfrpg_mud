@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 from app.config import configure_app_from_env
 from app.database import get_db, init_db
 from app.routers import auth, characters, combat, commands, hirelings, items, users
+from app.routers import areas, exits, rooms
 from app.websockets import WebSocketManager
 
 logger = logging.getLogger(__name__)
@@ -41,6 +42,9 @@ app.include_router(items.router, prefix="/api/items", tags=["items"])
 app.include_router(combat.router, prefix="/api/combat", tags=["combat"])
 app.include_router(hirelings.router, prefix="/api/hirelings", tags=["hirelings"])
 app.include_router(commands.router, prefix="/api/commands", tags=["commands"])
+app.include_router(areas.router, prefix="/api/areas", tags=["areas"])
+app.include_router(rooms.router, prefix="/api/rooms", tags=["rooms"])
+app.include_router(exits.router, prefix="/api/exits", tags=["exits"])
 
 # Add WebSocket connection endpoint
 ws_manager = WebSocketManager(app)

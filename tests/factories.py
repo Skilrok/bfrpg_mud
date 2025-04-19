@@ -14,6 +14,7 @@ from app.constants import CharacterClass, CharacterRace, ItemType
 from app.models import Character, Hireling, Item, Room, User
 from app.routers.auth import create_access_token
 from app.utils import get_password_hash
+from app.models.hireling import HirelingType
 
 
 def create_test_user(
@@ -263,11 +264,12 @@ def create_test_hireling(
     db,
     name: str = None,
     level: int = 1,
-    race: CharacterRace = CharacterRace.HUMAN,
-    character_class: CharacterClass = CharacterClass.FIGHTER,
-    salary: int = 5,
-    loyalty: int = 50,
-    owner_id: Optional[int] = None,
+    character_class: str = "fighter",
+    wage: int = 10,
+    loyalty: float = 50.0,
+    user_id: Optional[int] = None,
+    master_id: Optional[int] = None,
+    hireling_type: HirelingType = HirelingType.PORTER,
 ) -> Hireling:
     """
     Create a test hireling in the database
@@ -276,11 +278,12 @@ def create_test_hireling(
         db: Database session
         name: Hireling name (will be generated if None)
         level: Hireling level
-        race: Hireling race
         character_class: Hireling class
-        salary: Salary in gold per day
+        wage: Gold per day
         loyalty: Loyalty score (0-100)
-        owner_id: Owner character ID (None = not hired)
+        user_id: User ID that owns the hireling
+        master_id: Character ID that hired the hireling
+        hireling_type: Type of hireling (porter, mercenary, etc.)
 
     Returns:
         Created Hireling instance
@@ -293,13 +296,17 @@ def create_test_hireling(
     # Create hireling
     hireling = Hireling(
         name=name,
+        character_class=character_class,
         level=level,
-        race=race.value,
-        character_class=character_class.value,
-        salary=salary,
+        experience=0,
         loyalty=loyalty,
-        owner_id=owner_id,
-        last_paid=datetime.utcnow() if owner_id else None,
+        wage=wage,
+        is_available=master_id is None,
+        last_payment_date=datetime.utcnow() if master_id else None,
+        days_unpaid=0,
+        user_id=user_id,
+        master_id=master_id,
+        hireling_type=hireling_type,
     )
 
     db.add(hireling)

@@ -26,6 +26,7 @@ async def create_hireling(
             wage=hireling.wage,
             user_id=current_user.id,
             is_available=True,
+            hireling_type=hireling.hireling_type,
         )
         db.add(db_hireling)
         db.commit()

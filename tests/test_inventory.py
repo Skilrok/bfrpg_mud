@@ -10,9 +10,9 @@ import shutil
 from datetime import datetime, timedelta
 from jose import jwt
 import threading
-
 from app.main import app
-from app.database import Base, get_db
+from app.database import get_db
+from app.models.base import Base
 from app.models import User, Character, Item, ItemType
 from app.schemas import CharacterRace, CharacterClass
 from app.routers.auth import SECRET_KEY, ALGORITHM

@@ -14,6 +14,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    is_admin = Column(Boolean, default=False)
     reset_token = Column(String, nullable=True)
     reset_token_expiry = Column(DateTime, nullable=True)
 

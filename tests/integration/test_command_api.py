@@ -24,7 +24,7 @@ class TestCommandAPI:
         response = client.post(command_endpoint, json={"command": "help"})
         assert response.status_code == 401
 
-    def test_command_api_empty_command(self, client, command_endpoint, auth_headers):
+    def test_command_api_empty_command(self, client, command_endpoint, auth_headers, mock_current_user):
         """Test that empty commands are rejected."""
         response = client.post(
             command_endpoint, json={"command": ""}, headers=auth_headers
@@ -35,7 +35,7 @@ class TestCommandAPI:
         assert "No command provided" in data["detail"]
 
     def test_command_api_help(
-        self, client, command_endpoint, auth_headers, test_db, test_user
+        self, client, command_endpoint, auth_headers, test_db, test_user, mock_current_user
     ):
         """Test the help command through the API."""
         # Use a mock to avoid dependency on actual command implementation
@@ -70,7 +70,7 @@ class TestCommandAPI:
             assert history.command == "help"
 
     def test_command_api_with_character(
-        self, client, command_endpoint, auth_headers, test_db, test_user, test_character
+        self, client, command_endpoint, auth_headers, test_db, test_user, test_character, mock_current_user
     ):
         """Test command execution with a specific character."""
         # Use a mock to avoid dependency on actual command implementation
@@ -107,7 +107,7 @@ class TestCommandAPI:
             assert history is not None
             assert history.command == "look"
 
-    def test_command_api_error_handling(self, client, command_endpoint, auth_headers):
+    def test_command_api_error_handling(self, client, command_endpoint, auth_headers, mock_current_user):
         """Test error handling in the command API."""
         # Use a mock to simulate an error
         with patch.object(command_registry, "execute_command") as mock_execute:
@@ -135,7 +135,7 @@ class TestCommandAPI:
         ],
     )
     def test_command_api_various_commands(
-        self, client, command_endpoint, auth_headers, test_db, test_user, command, args
+        self, client, command_endpoint, auth_headers, test_db, test_user, command, args, mock_current_user
     ):
         """Test various commands through the API."""
         # Use a mock to avoid dependency on actual command implementation

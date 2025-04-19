@@ -15,7 +15,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
-from app.database import Base, get_db
+from app.database import get_db
+from app.models.base import Base
 from app.main import app
 from app.models import Character, User
 from app.routers.auth import create_access_token, get_current_user
@@ -251,13 +252,13 @@ def test_item(test_db):
 
 
 @pytest.fixture
-def test_hireling(test_db):
+def test_hireling(test_db, test_user):
     """
     Create a test hireling for each test.
 
     This fixture provides a hireling for testing hireling-related functionality.
     """
-    hireling = create_test_hireling(test_db)
+    hireling = create_test_hireling(test_db, user_id=test_user.id)
     return hireling
 
 

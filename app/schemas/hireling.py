@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import BaseModel
 from datetime import datetime
+from app.models.hireling import HirelingType
 
 class HirelingBase(BaseModel):
     """Base hireling schema with common attributes"""
@@ -10,6 +11,7 @@ class HirelingBase(BaseModel):
     experience: int = 0
     loyalty: float = 50.0
     wage: int = 10
+    hireling_type: HirelingType = HirelingType.PORTER
 
     class Config:
         from_attributes = True
@@ -43,6 +45,7 @@ class HirelingUpdate(BaseModel):
     is_available: Optional[bool] = None
     master_id: Optional[int] = None
     days_unpaid: Optional[int] = None
+    hireling_type: Optional[HirelingType] = None
     
     class Config:
         from_attributes = True

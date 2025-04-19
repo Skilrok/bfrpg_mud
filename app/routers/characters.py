@@ -4,10 +4,15 @@ from typing import List, Dict, Any
 import random
 import json
 import traceback
+import logging
 
 from .. import models, schemas
 from ..database import get_db
 from ..routers.auth import get_current_user
+from ..services.character_service import set_character_starting_location
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -187,7 +192,12 @@ async def create_character(
             # Add starting equipment based on character class
             add_starting_equipment(db, db_character)
             
-            # Refresh again to get the updated inventory
+            # Set the character's starting location
+            location_success = set_character_starting_location(db, db_character.id)
+            if not location_success:
+                logger.warning(f"Failed to set starting location for character {db_character.id}")
+            
+            # Refresh again to get the updated inventory and location
             db.refresh(db_character)
             
             # Convert SQLAlchemy model to Pydantic model

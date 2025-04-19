@@ -5,7 +5,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.commands.base import CommandHandler, CommandContext, CommandResponse
 from app.commands.registry import command_registry
-from app.models import CharacterLocation, Room
+from app.models import CharacterLocation, Room, Exit
 from app.commands.parser import parse_direction
 
 logger = logging.getLogger(__name__)
@@ -103,45 +103,101 @@ class MoveCommand(CommandHandler):
                 errors=["Current room not found"]
             )
             
-        # Check if direction is valid for this room
-        exits = current_room.exits or {}
-        if self.direction not in exits:
+        # First try to find exit using the Exit model
+        exit = db.query(Exit).filter(
+            Exit.source_room_id == current_room.id,
+            Exit.direction == self.direction,
+            Exit.is_hidden == False  # Only consider visible exits
+        ).first()
+        
+        # If exit found through Exit model, use it
+        if exit:
+            # Check if exit is locked
+            if exit.is_locked:
+                return CommandResponse(
+                    success=False,
+                    message=f"The way {self.direction} is locked.",
+                    errors=["Exit is locked"]
+                )
+                
+            destination_room = db.query(Room).filter(Room.id == exit.destination_room_id).first()
+            if not destination_room:
+                return CommandResponse(
+                    success=False,
+                    message=f"The way {self.direction} leads nowhere.",
+                    errors=["Destination room not found"]
+                )
+                
+            # Move character to new room
+            success = await move_character(db, ctx.character.id, destination_room.id)
+            if not success:
+                return CommandResponse(
+                    success=False,
+                    message=f"You couldn't move {self.direction}.",
+                    errors=["Failed to move character"]
+                )
+                
+            # Build description with exit name/description if available
+            direction_desc = f"{self.direction}"
+            if exit.name:
+                direction_desc = f"{self.direction} through {exit.name}"
+                
+            msg = f"You move {direction_desc} to {destination_room.name}."
+            if exit.description:
+                msg += f" {exit.description}"
+                
+            msg += f"\n\n{destination_room.description}"
+                
+            return CommandResponse(
+                success=True,
+                message=msg,
+                data={
+                    "room_id": destination_room.id,
+                    "room_name": destination_room.name,
+                    "direction": self.direction,
+                    "exit_id": exit.id
+                }
+            )
+        
+        # If no Exit model exit found, fallback to legacy exits field for backward compatibility
+        elif current_room.exits and self.direction in current_room.exits:
+            # Check if direction is valid for this room using legacy exits
+            destination_room_id = current_room.exits[self.direction]
+            destination_room = db.query(Room).filter(Room.id == destination_room_id).first()
+            
+            if not destination_room:
+                return CommandResponse(
+                    success=False,
+                    message=f"The way {self.direction} seems blocked.",
+                    errors=["Destination room not found"]
+                )
+                
+            # Move character to new room
+            success = await move_character(db, ctx.character.id, destination_room.id)
+            if not success:
+                return CommandResponse(
+                    success=False,
+                    message=f"You couldn't move {self.direction}.",
+                    errors=["Failed to move character"]
+                )
+                
+            # Return success message with description of new room
+            return CommandResponse(
+                success=True,
+                message=f"You move {self.direction} to {destination_room.name}.\n\n{destination_room.description}",
+                data={
+                    "room_id": destination_room.id,
+                    "room_name": destination_room.name,
+                    "direction": self.direction
+                }
+            )
+        else:
+            # No exit found in either system
             return CommandResponse(
                 success=False,
                 message=f"You can't go {self.direction} from here.",
                 errors=[f"No exit in direction {self.direction}"]
             )
-            
-        # Get destination room
-        destination_room_id = exits[self.direction]
-        destination_room = db.query(Room).filter(Room.id == destination_room_id).first()
-        
-        if not destination_room:
-            return CommandResponse(
-                success=False,
-                message=f"The way {self.direction} seems blocked.",
-                errors=["Destination room not found"]
-            )
-            
-        # Move character to new room
-        success = await move_character(db, ctx.character.id, destination_room.id)
-        if not success:
-            return CommandResponse(
-                success=False,
-                message=f"You couldn't move {self.direction}.",
-                errors=["Failed to move character"]
-            )
-            
-        # Return success message with description of new room
-        return CommandResponse(
-            success=True,
-            message=f"You move {self.direction} to {destination_room.name}.\n\n{destination_room.description}",
-            data={
-                "room_id": destination_room.id,
-                "room_name": destination_room.name,
-                "direction": self.direction
-            }
-        )
 
 class NorthCommand(MoveCommand):
     """Handler for the north command"""

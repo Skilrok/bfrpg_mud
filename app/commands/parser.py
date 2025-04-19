@@ -22,17 +22,18 @@ class CommandParser:
         return parse_command(text)
     
     @staticmethod
-    def extract_target(args: List[str]) -> Tuple[str, List[str]]:
+    def extract_target(command: str, args: List[str]) -> Optional[str]:
         """
-        Extract a target from arguments
+        Extract a target from command and arguments
         
         Args:
+            command: Command name
             args: Command arguments
             
         Returns:
-            Tuple of (target, remaining_args)
+            Target string or None
         """
-        return extract_target(args)
+        return extract_target(command, args)
     
     @staticmethod
     def parse_direction(text: str) -> Optional[str]:
@@ -60,8 +61,8 @@ def parse_command(text: str) -> Tuple[str, List[str]]:
     if not text or not text.strip():
         return ("", [])
     
-    # Convert to lowercase and strip leading/trailing whitespace
-    text = text.lower().strip()
+    # Strip leading/trailing whitespace but don't lowercase yet
+    text = text.strip()
     
     try:
         # Use shlex to handle quoted arguments properly
@@ -73,35 +74,11 @@ def parse_command(text: str) -> Tuple[str, List[str]]:
     if not parts:
         return ("", [])
     
-    command = parts[0]
+    # Only lowercase the command, preserve case for arguments
+    command = parts[0].lower()
     args = parts[1:] if len(parts) > 1 else []
     
     return (command, args)
-
-def extract_target(args: List[str]) -> Tuple[str, List[str]]:
-    """
-    Extract a potential target from command arguments
-    
-    Args:
-        args: List of command arguments
-        
-    Returns:
-        Tuple of (target, remaining_args)
-    """
-    if not args:
-        return ("", [])
-    
-    # Common prepositions that might indicate a target
-    prepositions = ["at", "to", "on", "with", "in", "from", "for"]
-    
-    # Check if any preposition exists in the arguments
-    for i, arg in enumerate(args):
-        if arg in prepositions and i + 1 < len(args):
-            # Return everything after the preposition as the target
-            return (" ".join(args[i+1:]), args[:i])
-    
-    # If no preposition found, the last argument could be the target
-    return (args[-1], args[:-1])
 
 def parse_direction(text: str) -> Optional[str]:
     """
@@ -133,3 +110,29 @@ def parse_direction(text: str) -> Optional[str]:
             return standard
             
     return None 
+
+def extract_target(command: str, args: List[str]) -> Optional[str]:
+    """
+    Extract a potential target from command arguments
+    
+    Args:
+        command: The command being executed
+        args: List of command arguments
+        
+    Returns:
+        Target string or None if no target found
+    """
+    if not args:
+        return None
+    
+    # Common prepositions that might indicate a target
+    prepositions = ["at", "to", "on", "with", "in", "from", "for"]
+    
+    # Check if any preposition exists in the arguments
+    for i, arg in enumerate(args):
+        if arg.lower() in prepositions and i + 1 < len(args):
+            # Return everything after the preposition as the target
+            return " ".join(args[i+1:])
+    
+    # If no preposition found, the entire args could be the target
+    return " ".join(args) 

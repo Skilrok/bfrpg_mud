@@ -10,6 +10,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    Float,
 )
 from sqlalchemy.orm import relationship
 
@@ -47,7 +48,7 @@ class Hireling(Base):
     character_class = Column(String)  # e.g., "fighter", "cleric", "magic-user"
     level = Column(Integer, default=1)
     experience = Column(Integer, default=0)
-    loyalty = Column(Enum(LoyaltyLevel), default=LoyaltyLevel.NEUTRAL)
+    loyalty = Column(Float, default=50.0)  # loyalty as float (0-100)
     wage = Column(Integer, default=10)  # gold pieces per day
     is_available = Column(Boolean, default=True)
     last_payment_date = Column(DateTime, nullable=True)
@@ -66,7 +67,7 @@ class Hireling(Base):
 
     def update_loyalty(self, change: float):
         """Update loyalty score with bounds checking"""
-        self.loyalty = max(0, min(100, self.loyalty + change))
+        self.loyalty = max(0.0, min(100.0, self.loyalty + change))
 
     def update_payment_status(self):
         """Update days_unpaid based on last payment date"""
