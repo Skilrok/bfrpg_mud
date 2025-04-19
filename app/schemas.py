@@ -8,14 +8,23 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 
+    class Config:
+        from_attributes = True  # For compatibility with Pydantic v2
+
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+    class Config:
+        from_attributes = True
 
 
 class UserBase(BaseModel):
     username: str
     email: EmailStr
+
+    class Config:
+        from_attributes = True
 
 
 class UserCreate(UserBase):
@@ -35,7 +44,6 @@ class User(UserBase):
 
     class Config:
         from_attributes = True
-        orm_mode = True  # For compatibility with older Pydantic versions
 
 
 class CharacterRace(str, Enum):
@@ -62,6 +70,9 @@ class AbilityScores(BaseModel):
     constitution: int = Field(..., ge=3, le=18)
     charisma: int = Field(..., ge=3, le=18)
 
+    class Config:
+        from_attributes = True
+
 
 class CharacterBase(BaseModel):
     name: str
@@ -74,6 +85,9 @@ class CharacterBase(BaseModel):
     dexterity: int
     constitution: int
     charisma: int
+
+    class Config:
+        from_attributes = True
 
 
 class CharacterCreate(CharacterBase):
@@ -161,6 +175,9 @@ class CharacterCreate(CharacterBase):
                 
         return v
 
+    class Config:
+        from_attributes = True
+
 
 class Character(CharacterBase):
     id: int
@@ -183,7 +200,6 @@ class Character(CharacterBase):
     thief_abilities: Dict[str, int] = {}
 
     class Config:
-        orm_mode = True  # For backward compatibility with older Pydantic
         from_attributes = True
         # Allow population by field name for SQLAlchemy relationships
         populate_by_name = True
@@ -199,9 +215,15 @@ class HirelingBase(BaseModel):
     loyalty: float = 50.0
     wage: int = 10
 
+    class Config:
+        from_attributes = True
+
 
 class HirelingCreate(HirelingBase):
     pass
+
+    class Config:
+        from_attributes = True
 
 
 class Hireling(HirelingBase):
@@ -213,8 +235,7 @@ class Hireling(HirelingBase):
     last_payment_date: Optional[datetime] = None
 
     class Config:
-        from_attributes = True
-        orm_mode = True  # Include this for backward compatibility with older versions
+        from_attributes = True  # For compatibility with Pydantic v2
 
 
 # New Item Type Enum for the inventory system
@@ -243,10 +264,16 @@ class ItemBase(BaseModel):
     weight: float  # Weight in pounds
     properties: Dict[str, Any] = {}  # Flexible field for item-specific properties
 
+    class Config:
+        from_attributes = True
+
 
 # Schema for creating new items
 class ItemCreate(ItemBase):
     pass
+
+    class Config:
+        from_attributes = True
 
 
 # Item schema with database ID
@@ -255,7 +282,6 @@ class Item(ItemBase):
     
     class Config:
         from_attributes = True
-        orm_mode = True
 
 
 # Schema for inventory items (items in a character's inventory)
@@ -265,14 +291,62 @@ class InventoryItem(BaseModel):
     equipped: bool = False
     slot: Optional[str] = None  # Equipment slot if equipped
 
+    class Config:
+        from_attributes = True
+
 
 # Schema for adding items to inventory
 class AddInventoryItem(BaseModel):
     item_id: int
     quantity: int = 1
 
+    class Config:
+        from_attributes = True
+
 
 # Schema for equipping items
 class EquipItem(BaseModel):
     item_id: int
     slot: str
+
+    class Config:
+        from_attributes = True
+
+
+# Password reset request schema
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+    
+    class Config:
+        from_attributes = True
+
+
+# Password reset schema
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str
+    password_confirm: str
+    
+    @validator('password_confirm')
+    def passwords_match(cls, v, values, **kwargs):
+        if 'new_password' in values and v != values['new_password']:
+            raise ValueError('passwords do not match')
+        return v
+    
+    class Config:
+        from_attributes = True
+
+
+# Schema for updating character state
+class CharacterStateUpdate(BaseModel):
+    hit_points: Optional[int] = None
+    experience: Optional[int] = None
+    gold: Optional[int] = None
+    level: Optional[int] = None
+    armor_class: Optional[int] = None
+    inventory: Optional[Dict[str, Any]] = None
+    equipment: Optional[Dict[str, Any]] = None
+    spells_known: Optional[List[str]] = None
+    
+    class Config:
+        from_attributes = True

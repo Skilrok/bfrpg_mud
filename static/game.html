@@ -272,7 +272,7 @@ Type 'help' for a list of commands.
                     
                     // Send command to API
                     try {
-                        const response = await fetch('/api/game/command', {
+                        const response = await fetch('/api/game', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -283,7 +283,7 @@ Type 'help' for a list of commands.
                         
                         if (response.ok) {
                             const data = await response.json();
-                            addOutput(data.response);
+                            addOutput(data.message);
                         } else {
                             // If the command isn't handled by the API, provide a client-side response
                             handleLocalCommand(command);

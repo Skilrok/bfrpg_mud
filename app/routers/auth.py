@@ -10,6 +10,7 @@ import logging
 from .. import models, schemas
 from ..database import get_db
 import os
+import secrets
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +37,17 @@ def verify_password(plain_password, hashed_password):
                 return test_result
         
         # Normal verification for non-test passwords
-        return pwd_context.verify(plain_password, hashed_password)
+        try:
+            return pwd_context.verify(plain_password, hashed_password)
+        except AttributeError as e:
+            # Handle bcrypt version detection error
+            if "__about__" in str(e):
+                logger.warning("Working around bcrypt version detection issue")
+                # Fallback to a direct method
+                from passlib.hash import bcrypt
+                return bcrypt.verify(plain_password, hashed_password)
+            else:
+                raise
     except Exception as e:
         # Log the error but don't expose it
         logger.error(f"Password verification error: {str(e)}")
@@ -51,7 +62,23 @@ def verify_password(plain_password, hashed_password):
 
 
 def get_password_hash(password):
-    return pwd_context.hash(password)
+    try:
+        return pwd_context.hash(password)
+    except AttributeError as e:
+        # Handle bcrypt version detection error
+        if "__about__" in str(e):
+            logger.warning("Working around bcrypt version detection issue in password hashing")
+            from passlib.hash import bcrypt
+            return bcrypt.hash(password)
+        else:
+            raise
+    except Exception as e:
+        logger.error(f"Error hashing password: {str(e)}")
+        # Use a fallback method if the main one fails
+        import bcrypt
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(password.encode(), salt)
+        return hashed.decode()
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
@@ -112,6 +139,16 @@ async def get_current_user(
         raise credentials_exception
 
 
+async def get_current_active_user(current_user: models.User = Depends(get_current_user)):
+    """Check if the authenticated user is active"""
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, 
+            detail="Inactive user"
+        )
+    return current_user
+
+
 @router.post("/register", response_model=schemas.User)
 async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
     try:
@@ -136,10 +173,10 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db))
             )
         
         # Create user data dict and exclude password_confirm
-        user_data = user.dict(exclude={"password_confirm"})
+        user_data = user.model_dump(exclude={"password_confirm"})
         
         # Create new user with hashed password
-        hashed_password = get_password_hash(user_data["password"])
+        hashed_password = get_password_hash(user.password)
         logger.info(f"Password hashed successfully")
         
         # Remove plain password and add hashed_password
@@ -155,8 +192,13 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db))
         db.refresh(db_user)
         logger.info(f"User committed to database with ID: {db_user.id}")
         
-        # Use from_orm to convert SQLAlchemy model to Pydantic model
-        return schemas.User.from_orm(db_user)
+        # Create Pydantic model directly (no from_orm)
+        return schemas.User(
+            id=db_user.id,
+            username=db_user.username,
+            email=db_user.email,
+            is_active=db_user.is_active
+        )
         
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -266,20 +308,20 @@ async def debug_register(db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
         
-        # Test dictionary conversion
-        user_data = {
+        # Create response user data
+        user_dict = {
             "id": db_user.id,
             "username": db_user.username,
             "email": db_user.email,
             "is_active": db_user.is_active
         }
         
-        # Test pydantic model creation
-        pydantic_user = schemas.User(**user_data)
+        # Create Pydantic model directly (no from_orm)
+        pydantic_user = schemas.User(**user_dict)
         
         return {
             "success": True,
-            "user_data": user_data,
+            "user_data": user_dict,
             "pydantic_user": pydantic_user.dict()
         }
     except Exception as e:
@@ -292,16 +334,207 @@ async def debug_register(db: Session = Depends(get_db)):
 
 @router.post("/register-simple")
 async def register_user_simple(user: schemas.UserCreate, db: Session = Depends(get_db)):
-    """A simplified version of the register endpoint for debugging"""
+    """Simplified user registration for testing purposes"""
+    # Create user data and exclude password
+    user_data = user.model_dump(exclude={"password_confirm"})
+    
+    # Create new user with hashed password
+    hashed_password = get_password_hash(user.password)
+    
+    # Remove plain password and add hashed_password
+    del user_data["password"]
+    user_data["hashed_password"] = hashed_password
+    
+    # Create and save user
+    db_user = models.User(**user_data)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    
+    return {"username": db_user.username, "id": db_user.id, "success": True}
+
+
+# Generate secure random token for password reset
+def generate_reset_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
+@router.post("/reset-request", status_code=status.HTTP_200_OK)
+async def request_password_reset(
+    reset_request: schemas.PasswordResetRequest, db: Session = Depends(get_db)
+):
+    """
+    Request a password reset by providing the email address associated with the account
+    Returns a generic success message regardless of whether the email exists (for security)
+    """
     try:
-        # Return only simple data to ensure our response works
-        return {
-            "id": 1,
-            "username": user.username,
-            "email": user.email,
-            "is_active": True
-        }
+        # Find user by email
+        user = db.query(models.User).filter(models.User.email == reset_request.email).first()
+        
+        if user:
+            # Generate token and set expiry (24 hours from now)
+            token = generate_reset_token()
+            expiry = datetime.utcnow() + timedelta(hours=24)
+            
+            # Update user with token and expiry
+            user.reset_token = token
+            user.reset_token_expiry = expiry
+            db.commit()
+            
+            # In a real application, this would send an email with the reset link
+            # For now, we'll log it (in production, you'd use an email service)
+            logger.info(f"Generated reset token for user {user.username}: {token}")
+            
+        # Return a generic success message (don't reveal if email exists)
+        return {"message": "If the email exists in our system, a password reset link has been sent"}
+    
     except Exception as e:
-        logger.error(f"Error in simple registration: {str(e)}")
+        logger.error(f"Error in password reset request: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        return {"error": str(e)}
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while processing your request"
+        )
+
+
+@router.post("/reset-password", status_code=status.HTTP_200_OK)
+async def reset_password(
+    reset_data: schemas.PasswordReset, db: Session = Depends(get_db)
+):
+    """
+    Reset a password using a valid reset token
+    """
+    try:
+        # Find user by reset token
+        user = db.query(models.User).filter(models.User.reset_token == reset_data.token).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid or expired reset token"
+            )
+        
+        # Check if token is expired
+        if not user.reset_token_expiry or user.reset_token_expiry < datetime.utcnow():
+            # Invalidate token
+            user.reset_token = None
+            user.reset_token_expiry = None
+            db.commit()
+            
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Reset token has expired"
+            )
+        
+        # Update password
+        user.hashed_password = get_password_hash(reset_data.new_password)
+        
+        # Clear the reset token
+        user.reset_token = None
+        user.reset_token_expiry = None
+        
+        db.commit()
+        
+        return {"message": "Password has been reset successfully"}
+    
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error in password reset: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An error occurred while resetting your password"
+        )
+
+
+@router.post("/login", response_model=schemas.Token)
+async def login_endpoint(
+    credentials: schemas.UserLogin, db: Session = Depends(get_db)
+):
+    try:
+        # Find user by username
+        logger.info(f"Looking for user: {credentials.username}")
+        user = (
+            db.query(models.User).filter(models.User.username == credentials.username).first()
+        )
+        
+        if not user:
+            logger.warning(f"Login attempt for non-existent user: {credentials.username}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Debug log the user info
+        logger.info(f"Found user: {user.username}, hashed_password: {user.hashed_password[:10]}...")
+        
+        # Check password
+        if not verify_password(credentials.password, user.hashed_password):
+            logger.warning(f"Invalid password for user: {credentials.username}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        
+        # Create access token
+        logger.info(f"Successfully authenticated user: {user.username}")
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user.username}, expires_delta=access_token_expires
+        )
+        logger.info(f"Successfully generated token for user: {user.username}")
+        
+        return {"access_token": access_token, "token_type": "bearer"}
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Login error: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login error: {str(e)}"
+        )
+
+
+@router.get("/debug-validation")
+async def debug_validation():
+    """Return information about expected request formats"""
+    return {
+        "register_endpoint": {
+            "url": "/api/auth/register",
+            "method": "POST",
+            "content_type": "application/json",
+            "expected_format": {
+                "username": "string",
+                "email": "valid_email@example.com",
+                "password": "string",
+                "password_confirm": "string"
+            },
+            "required_fields": ["username", "email", "password", "password_confirm"]
+        },
+        "token_endpoint": {
+            "url": "/api/auth/token",
+            "method": "POST", 
+            "content_type": "application/x-www-form-urlencoded",
+            "expected_format": "username=username&password=password",
+            "required_fields": ["username", "password"]
+        },
+        "login_endpoint": {
+            "url": "/api/auth/login",
+            "method": "POST",
+            "content_type": "application/json",
+            "expected_format": {
+                "username": "string",
+                "password": "string"
+            },
+            "required_fields": ["username", "password"]
+        }
+    }

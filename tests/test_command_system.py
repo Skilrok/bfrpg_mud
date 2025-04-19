@@ -9,11 +9,11 @@ from typing import Dict, Any
 from unittest.mock import patch, MagicMock
 
 from app.main import app
-from app.commands import CommandParser, CommandRegistry, CommandCategory, CommandRequirement, command, CommandResult
 from app.command_handlers import cmd_help, cmd_look, cmd_examine, cmd_inventory
 from app.commands.parser import parse_command
 from app.commands.registry import command_registry
-from app.commands.base import CommandHandler, CommandContext, CommandResponse
+from app.commands.base import CommandHandler, CommandContext, CommandResponse, CommandCategory, CommandRequirement
+from app.commands.base import CommandResult
 
 client = TestClient(app)
 

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BFRPG MUD - Login</title>
+    <link rel="stylesheet" href="/css/styles.css">
     <style>
         :root {
             --terminal-green: #0f0;
@@ -219,6 +220,9 @@
                     <button id="register-btn" class="btn">Register</button>
                 </div>
                 <div id="message" class="message"></div>
+                <div class="forgot-password" style="text-align: center; margin-top: 15px;">
+                    <a href="/forgot-password.html" style="color: #0ff; text-decoration: none;">Forgot Password?</a>
+                </div>
             </div>
             
             <div class="login-footer">
@@ -287,12 +291,15 @@
                 }
                 
                 try {
-                    const response = await fetch('/api/auth/token', {
+                    const response = await fetch('/api/auth/login', {
                         method: 'POST',
                         headers: {
-                            'Content-Type': 'application/x-www-form-urlencoded'
+                            'Content-Type': 'application/json'
                         },
-                        body: `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`
+                        body: JSON.stringify({
+                            username: username,
+                            password: password
+                        })
                     });
                     
                     const data = await response.json();

@@ -9,6 +9,7 @@ registry = CommandRegistry()
 from .basic_commands import *
 from .movement_commands import *
 from .social_commands import *
+from .character_commands import *
 
 __all__ = [
     "registry", 

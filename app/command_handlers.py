@@ -5,8 +5,7 @@ This is a stub file to resolve import dependencies for tests.
 """
 
 from typing import List, Dict, Any
-from .commands import (
-    command, 
+from .commands.base import (
     CommandCategory, 
     CommandRequirement,
     CommandResult

@@ -16,6 +16,7 @@ Key Principles
 - Use lowercase with underscores for directories and files (e.g., routers/user_routes.py).
 - Favor named exports for routes and utility functions.
 - Use the Receive an Object, Return an Object (RORO) pattern.
+- Try not to generate code greater than 250 lines if possible.
 
 Python/FastAPI
 

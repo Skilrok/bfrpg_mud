@@ -1,13 +1,14 @@
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from app.database import Base, get_db
 from app.main import app
 from app import models
 from app.utils import get_password_hash, verify_password
 import os
 import uuid
+import threading
 from jose import jwt
 from app.routers.auth import SECRET_KEY, ALGORITHM
 from fastapi import Depends, HTTPException, status
@@ -17,20 +18,28 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Any
 from app.routers.auth import get_current_user
 
-# Create test database
-TEST_DB_PATH = "test_authentication.db"
+# Create test database with thread-specific name
+TEST_DB_PATH = f"test_authentication_{threading.get_ident()}.db"
 if os.path.exists(TEST_DB_PATH):
     try:
         os.remove(TEST_DB_PATH)
     except PermissionError:
-        # File might be locked by another process, we'll try to continue
-        pass
+        # File might be locked by another process, generate a unique name
+        TEST_DB_PATH = f"test_authentication_{threading.get_ident()}_{uuid.uuid4().hex[:8]}.db"
 
 SQLALCHEMY_DATABASE_URL = f"sqlite:///./{TEST_DB_PATH}"
 engine = create_engine(
-    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+    SQLALCHEMY_DATABASE_URL, 
+    connect_args={"check_same_thread": False},
+    # Limit pool size to prevent thread issues
+    pool_size=1,
+    max_overflow=0
 )
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Use thread-local sessions with scoped_session
+TestingSessionLocal = scoped_session(
+    sessionmaker(autocommit=False, autoflush=False, bind=engine)
+)
 
 # Create tables
 Base.metadata.drop_all(bind=engine)  # Drop all tables first
@@ -42,13 +51,36 @@ def override_get_db():
     try:
         yield db
     finally:
-        db.close()
+        # Don't close the session here - will be handled by the registry
+        pass
 
-# Apply dependency override for these tests
-app.dependency_overrides[get_db] = override_get_db
+# Setup and teardown for each test
+@pytest.fixture
+def client():
+    # Set up
+    app.dependency_overrides[get_db] = override_get_db
+    
+    with TestClient(app) as test_client:
+        yield test_client
+    
+    # Clean up
+    TestingSessionLocal.remove()
+    app.dependency_overrides.clear()
 
-# Test client
-client = TestClient(app)
+# Add cleanup function to delete the test database
+def teardown_module(module):
+    # Clean up session
+    TestingSessionLocal.remove()
+    
+    # Close all connections
+    engine.dispose()
+    
+    # Try to remove the database file
+    try:
+        if os.path.exists(TEST_DB_PATH):
+            os.remove(TEST_DB_PATH)
+    except:
+        pass  # File might still be locked on Windows
 
 @pytest.fixture
 def db_session():

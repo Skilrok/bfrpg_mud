@@ -21,6 +21,15 @@ class UserCreate(UserBase):
             raise ValueError('passwords do not match')
         return v
 
+class UserLogin(BaseModel):
+    """Schema for user login credentials"""
+    username: str
+    password: str
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True  # This is needed for compatibility with older Pydantic
+
 class User(UserBase):
     """Schema for user responses without sensitive information"""
     id: int

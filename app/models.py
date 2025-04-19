@@ -30,9 +30,17 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean, default=True)
+    reset_token = Column(String, nullable=True)
+    reset_token_expiry = Column(DateTime, nullable=True)
 
     characters = relationship("Character", back_populates="owner")
     hirelings = relationship("Hireling", back_populates="owner")
+    command_history = relationship(
+        "CommandHistory", 
+        back_populates="user", 
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
 
 class CharacterRace(str, enum.Enum):
@@ -102,6 +110,12 @@ class Character(Base):
 
     owner = relationship("User", back_populates="characters")
     hirelings = relationship("Hireling", back_populates="master")
+    command_history = relationship(
+        "CommandHistory", 
+        back_populates="character", 
+        cascade="all, delete",
+        passive_deletes=True
+    )
 
 
 class Hireling(Base):
@@ -163,3 +177,19 @@ class Item(Base):
     value = Column(Integer, default=0)  # Value in gold pieces
     weight = Column(Float, default=0.0)  # Weight in pounds
     properties = Column(JSON_TYPE, default=dict)  # Flexible field for item-specific properties
+
+
+class CommandHistory(Base):
+    """Stores command history for users"""
+    __tablename__ = "command_history"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    character_id = Column(Integer, ForeignKey("characters.id", ondelete="CASCADE"), nullable=True)
+    command = Column(String(255), nullable=False)
+    response = Column(Text, nullable=True)
+    success = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    
+    user = relationship("User", back_populates="command_history")
+    character = relationship("Character", back_populates="command_history")

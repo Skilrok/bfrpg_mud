@@ -1,8 +1,9 @@
 import pytest
 import os
 import uuid
+import threading
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from app.database import Base, get_db
 from app.main import app
 from fastapi.testclient import TestClient
@@ -14,20 +15,28 @@ from typing import Dict, Any
 # Set testing environment variable for all tests
 os.environ["TESTING"] = "True"
 
-# Create a file-based test database instead of in-memory
-TEST_DB_PATH = "test_database.db"
+# Create a unique file-based test database for each test session
+# This uses thread ID to avoid conflicts in parallel test runs
+TEST_DB_PATH = f"test_database_{threading.get_ident()}.db"
 if os.path.exists(TEST_DB_PATH):
     try:
         os.remove(TEST_DB_PATH)
     except PermissionError:
-        pass  # File might be locked, we'll try to continue
+        # File might be locked, generate a new unique name
+        TEST_DB_PATH = f"test_database_{threading.get_ident()}_{uuid.uuid4().hex[:8]}.db"
 
 TEST_DB_URL = f"sqlite:///./{TEST_DB_PATH}"
 
 @pytest.fixture(scope="session")
 def test_engine():
     """Create a SQLAlchemy engine for testing"""
-    engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
+    engine = create_engine(
+        TEST_DB_URL, 
+        connect_args={"check_same_thread": False},
+        # Limit connection pool size to prevent thread issues
+        pool_size=1,
+        max_overflow=0
+    )
     
     # Drop all tables first to ensure clean state
     Base.metadata.drop_all(engine)
@@ -39,12 +48,23 @@ def test_engine():
     
     # Cleanup after all tests
     engine.dispose()
+    
+    # Remove test database file
+    try:
+        if os.path.exists(TEST_DB_PATH):
+            os.remove(TEST_DB_PATH)
+    except:
+        pass  # Might fail if file is locked
 
 @pytest.fixture
 def test_db(test_engine):
     """Create a fresh database session for each test"""
-    # Create a new session for each test
-    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    # Create a thread-local session factory using scoped_session
+    TestSessionLocal = scoped_session(
+        sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    )
+    
+    # Get a session from the factory
     session = TestSessionLocal()
     
     # Set testing environment flag
@@ -78,6 +98,9 @@ def test_db(test_engine):
     # Clean up
     os.environ.pop("TESTING", None)
     session.close()
+    
+    # Remove the session from the registry
+    TestSessionLocal.remove()
 
 @pytest.fixture
 def client(test_db):

@@ -3,536 +3,178 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BFRPG MUD - Basic Fantasy Role-Playing Game</title>
-    <link rel="stylesheet" href="/css/styles.css">
+    <title>BFRPG MUD</title>
     <style>
-        body {
-            background-color: #000;
-            color: #ccc;
-            font-family: 'Courier New', monospace;
+        html, body {
+            height: 100%;
             margin: 0;
-            padding: 10px;
-            line-height: 1.2;
-        }
-        .mud-container {
-            max-width: 900px;
-            margin: 0 auto;
-            border: 1px solid #444;
-            padding: 4px;
-            background-color: #111;
-        }
-        .mud-header {
-            text-align: center;
-            color: #0f0;
-            padding: 5px;
-            border-bottom: 1px solid #444;
-        }
-        .character-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            border: 1px solid #444;
-            padding: 5px;
-            margin: 5px 0;
-            background-color: #222;
-        }
-        .stats-left, .stats-right {
-            padding: 5px;
-        }
-        .equipment {
-            border: 1px solid #444;
-            padding: 10px;
-            margin: 5px 0;
-            background-color: #222;
-        }
-        .output-panel {
-            height: 250px;
-            overflow-y: auto;
-            border: 1px solid #444;
-            padding: 10px;
-            margin: 5px 0;
-            background-color: #111;
-            white-space: pre-wrap;
-        }
-        .command-input {
-            width: 100%;
-            padding: 8px;
+            padding: 0;
+            font-family: monospace;
             background-color: #000;
             color: #0f0;
-            border: 1px solid #444;
-            font-family: 'Courier New', monospace;
-            margin-top: 5px;
-            box-sizing: border-box;
+            overflow: hidden;
         }
-        .chat-panel {
-            height: 100px;
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+        
+        h1 {
+            padding: 10px 20px;
+            margin: 0;
+            border-bottom: 1px solid #0f0;
+            background-color: #000;
+        }
+        
+        #terminal {
+            flex: 1;
             overflow-y: auto;
-            border: 1px solid #444;
-            padding: 5px;
-            margin: 5px 0;
-            background-color: #222;
-            font-size: 0.9em;
+            padding: 10px 20px;
+            padding-bottom: 70px; /* Space for input container */
         }
-        .chat-message {
-            margin-bottom: 3px;
+        
+        #input-container {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 10px 20px;
+            background-color: #000;
+            border-top: 1px solid #0f0;
+            z-index: 10;
         }
-        .system-message {
-            color: #888;
-            font-style: italic;
+        
+        #input-line {
+            display: flex;
+            width: 100%;
         }
-        .login-panel {
-            text-align: center;
-            margin-top: 50px;
-            border: 1px solid #444;
-            padding: 20px;
-            background-color: #222;
-            max-width: 400px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-        .login-input {
-            padding: 8px;
-            margin: 5px;
-            background-color: #111;
-            color: #ccc;
-            border: 1px solid #444;
-            width: 80%;
-        }
-        .login-button {
-            padding: 8px 15px;
-            background-color: #333;
+        
+        #command-input {
+            flex-grow: 1;
+            background-color: #000;
             color: #0f0;
             border: 1px solid #0f0;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 1em;
+        }
+        
+        button {
+            background-color: #0f0;
+            color: #000;
+            border: none;
+            padding: 8px 15px;
+            margin-left: 8px;
             cursor: pointer;
-            margin-top: 10px;
+            font-weight: bold;
         }
-        .hidden {
-            display: none;
-        }
-        .ascii-border {
-            white-space: pre;
-            color: #555;
-            font-size: 0.8em;
-            line-height: 1;
-        }
-        .stat-name {
+        
+        .command-line {
             color: #0f0;
-            width: 120px;
-            display: inline-block;
-        }
-        .stat-value {
-            color: #fff;
-        }
-        .equipment-title {
-            color: #0f0;
+            font-weight: bold;
             margin-bottom: 5px;
         }
-        .equipped-item {
-            color: #ff9;
+        
+        .response-line {
+            margin-bottom: 10px;
+            white-space: pre-wrap;
         }
     </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // DOM Elements
-            const loginPanel = document.getElementById('login-panel');
-            const gameContainer = document.getElementById('game-container');
-            const loginButton = document.getElementById('login-button');
-            const usernameInput = document.getElementById('username');
-            const passwordInput = document.getElementById('password');
-            const commandInput = document.getElementById('command-input');
-            const outputPanel = document.getElementById('output-panel');
-            const chatPanel = document.getElementById('chat-panel');
-            
-            // Character stats elements
-            const charName = document.getElementById('char-name');
-            const charClass = document.getElementById('char-class');
-            const charRace = document.getElementById('char-race');
-            const charLevel = document.getElementById('char-level');
-            const charHp = document.getElementById('char-hp');
-            const charAc = document.getElementById('char-ac');
-            const charStr = document.getElementById('char-str');
-            const charDex = document.getElementById('char-dex');
-            const charCon = document.getElementById('char-con');
-            const charInt = document.getElementById('char-int');
-            const charWis = document.getElementById('char-wis');
-            const charCha = document.getElementById('char-cha');
-            
-            // Equipment list
-            const equipmentList = document.getElementById('equipment-list');
-            
-            // Variables
-            let socket = null;
-            let token = null;
-            let characterId = null;
-            
-            // Login Handler
-            loginButton.addEventListener('click', handleLogin);
-            
-            // Also allow login with Enter key
-            passwordInput.addEventListener('keyup', function(event) {
-                if (event.key === 'Enter') {
-                    handleLogin();
-                }
-            });
-            
-            // Command input handler
-            commandInput.addEventListener('keyup', function(event) {
-                if (event.key === 'Enter') {
-                    const command = commandInput.value.trim();
-                    if (command) {
-                        handleCommand(command);
-                        commandInput.value = '';
-                    }
-                }
-            });
-            
-            // Login function
-            async function handleLogin() {
-                const username = usernameInput.value.trim();
-                const password = passwordInput.value.trim();
-                
-                if (!username || !password) {
-                    alert('Please enter both username and password');
-                    return;
-                }
-                
-                try {
-                    const response = await fetch('/api/login', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ username, password })
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Login failed');
-                    }
-                    
-                    const data = await response.json();
-                    token = data.token;
-                    
-                    // Hide login, show game
-                    loginPanel.classList.add('hidden');
-                    gameContainer.classList.remove('hidden');
-                    
-                    // Load characters
-                    await loadCharacters();
-                    
-                    // Setup websocket
-                    setupWebSocket();
-                    
-                    // Focus on command input
-                    commandInput.focus();
-                    
-                } catch (error) {
-                    alert('Login failed: ' + error.message);
-                }
-            }
-            
-            // Load characters
-            async function loadCharacters() {
-                try {
-                    const response = await fetch('/api/characters', {
-                        headers: {
-                            'Authorization': 'Bearer ' + token
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to load characters');
-                    }
-                    
-                    const characters = await response.json();
-                    
-                    if (characters.length === 0) {
-                        appendToOutput('You have no characters. Create one using the "create" command.');
-                    } else {
-                        // Just use the first character for now
-                        characterId = characters[0].id;
-                        loadCharacterDetails(characterId);
-                    }
-                    
-                } catch (error) {
-                    appendToOutput('Error: ' + error.message);
-                }
-            }
-            
-            // Load character details
-            async function loadCharacterDetails(charId) {
-                try {
-                    const response = await fetch(`/api/characters/${charId}`, {
-                        headers: {
-                            'Authorization': 'Bearer ' + token
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to load character details');
-                    }
-                    
-                    const character = await response.json();
-                    
-                    // Update character stats
-                    charName.textContent = character.name;
-                    charClass.textContent = character.character_class;
-                    charRace.textContent = character.race;
-                    charLevel.textContent = character.level;
-                    charHp.textContent = `[${character.current_hp}/${character.max_hp}]`;
-                    charAc.textContent = character.armor_class;
-                    
-                    // Update attributes
-                    charStr.textContent = character.strength;
-                    charDex.textContent = character.dexterity;
-                    charCon.textContent = character.constitution;
-                    charInt.textContent = character.intelligence;
-                    charWis.textContent = character.wisdom;
-                    charCha.textContent = character.charisma;
-                    
-                    // Load inventory
-                    loadInventory(charId);
-                    
-                    appendToOutput(`Character loaded: ${character.name}, Level ${character.level} ${character.race} ${character.character_class}`);
-                    
-                } catch (error) {
-                    appendToOutput('Error: ' + error.message);
-                }
-            }
-            
-            // Load inventory
-            async function loadInventory(charId) {
-                try {
-                    const response = await fetch(`/api/characters/${charId}/inventory`, {
-                        headers: {
-                            'Authorization': 'Bearer ' + token
-                        }
-                    });
-                    
-                    if (!response.ok) {
-                        throw new Error('Failed to load inventory');
-                    }
-                    
-                    const inventory = await response.json();
-                    
-                    // Clear equipment list
-                    equipmentList.innerHTML = '';
-                    
-                    if (inventory.length === 0) {
-                        equipmentList.innerHTML = '<div class="equipped-item">Nothing equipped yet</div>';
-                    } else {
-                        inventory.forEach(item => {
-                            const itemElement = document.createElement('div');
-                            if (item.equipped) {
-                                itemElement.className = 'equipped-item';
-                                itemElement.textContent = `${item.name} [Equipped: ${item.slot}]`;
-                            } else {
-                                itemElement.textContent = item.name;
-                            }
-                            equipmentList.appendChild(itemElement);
-                        });
-                    }
-                    
-                } catch (error) {
-                    appendToOutput('Error loading inventory: ' + error.message);
-                }
-            }
-            
-            // Setup WebSocket
-            function setupWebSocket() {
-                const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${wsProtocol}//${window.location.host}/ws?token=${token}`;
-                
-                socket = new WebSocket(wsUrl);
-                
-                socket.onopen = function() {
-                    appendToChat('* Connected to server');
-                };
-                
-                socket.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    
-                    if (data.type === 'chat') {
-                        appendToChat(`<${data.sender}> ${data.message}`);
-                    } else if (data.type === 'system') {
-                        appendToChat(`* ${data.message}`);
-                    } else if (data.type === 'command_response') {
-                        appendToOutput(data.message);
-                    } else if (data.type === 'character_update') {
-                        // Update character stats if needed
-                        if (data.character_id === characterId) {
-                            updateCharacterStats(data);
-                        }
-                    }
-                };
-                
-                socket.onclose = function() {
-                    appendToChat('* Disconnected from server');
-                    // Try to reconnect after 5 seconds
-                    setTimeout(setupWebSocket, 5000);
-                };
-                
-                socket.onerror = function(error) {
-                    console.error('WebSocket error:', error);
-                    appendToChat('* Connection error');
-                };
-            }
-            
-            // Update character stats from socket
-            function updateCharacterStats(data) {
-                if (data.hp) {
-                    charHp.textContent = `[${data.hp.current}/${data.hp.max}]`;
-                }
-                if (data.armor_class) {
-                    charAc.textContent = data.armor_class;
-                }
-                if (data.level) {
-                    charLevel.textContent = data.level;
-                }
-                // Reload inventory if it was updated
-                if (data.inventory_updated) {
-                    loadInventory(characterId);
-                }
-            }
-            
-            // Handle command input
-            function handleCommand(command) {
-                // Check if it's a chat command
-                if (command.startsWith('/')) {
-                    handleChatCommand(command);
-                    return;
-                }
-                
-                appendToOutput(`> ${command}`);
-                
-                // Send command to server
-                if (socket && socket.readyState === WebSocket.OPEN) {
-                    socket.send(JSON.stringify({
-                        type: 'command',
-                        command: command,
-                        character_id: characterId
-                    }));
-                } else {
-                    appendToOutput('Not connected to server');
-                }
-            }
-            
-            // Handle chat command
-            function handleChatCommand(command) {
-                // Extract the command and message
-                const parts = command.slice(1).split(' ');
-                const cmd = parts[0].toLowerCase();
-                const message = parts.slice(1).join(' ');
-                
-                if (cmd === 'say' || cmd === 's') {
-                    if (message.trim()) {
-                        if (socket && socket.readyState === WebSocket.OPEN) {
-                            socket.send(JSON.stringify({
-                                type: 'chat',
-                                message: message,
-                                character_id: characterId
-                            }));
-                        } else {
-                            appendToChat('* Not connected to server');
-                        }
-                    }
-                } else if (cmd === 'help') {
-                    appendToChat('* Chat commands: /say (or /s) <message>, /help');
-                } else {
-                    appendToChat(`* Unknown chat command: ${cmd}`);
-                }
-            }
-            
-            // Append text to output panel
-            function appendToOutput(text) {
-                const output = document.createElement('div');
-                output.textContent = text;
-                outputPanel.appendChild(output);
-                outputPanel.scrollTop = outputPanel.scrollHeight;
-            }
-            
-            // Append text to chat panel
-            function appendToChat(text) {
-                const chat = document.createElement('div');
-                chat.className = 'chat-message';
-                
-                if (text.startsWith('*')) {
-                    chat.className += ' system-message';
-                }
-                
-                chat.textContent = text;
-                chatPanel.appendChild(chat);
-                chatPanel.scrollTop = chatPanel.scrollHeight;
-            }
-        });
-    </script>
 </head>
 <body>
-    <!-- Login Panel -->
-    <div id="login-panel" class="login-panel">
-        <div class="ascii-border">
-        +------------------------------------------+
-        |             BFRPG MUD LOGIN             |
-        +------------------------------------------+
+    <div class="container">
+        <h1>BFRPG MUD</h1>
+        <div id="terminal"></div>
+        <div id="input-container">
+            <div id="input-line">
+                <input type="text" id="command-input" placeholder="Enter command...">
+                <button id="send-btn">Send</button>
+            </div>
         </div>
-        <h2 style="color: var(--highlight-color);">Login to the Realm</h2>
-        <input type="text" id="username" class="login-input" placeholder="Username" required>
-        <input type="password" id="password" class="login-input" placeholder="Password" required>
-        <button id="login-button" class="login-button">Enter the Realm</button>
-        <p>New to the realm? <a href="/register.html">Register</a></p>
     </div>
 
-    <!-- Main Game Container -->
-    <div id="game-container" class="mud-container hidden">
-        <div class="mud-header">
-            <div class="ascii-border">
-            +-------------------------------------------------+
-            |               BFRPG MUD TERMINAL                |
-            +-------------------------------------------------+
-            </div>
-        </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const terminal = document.getElementById('terminal');
+            const commandInput = document.getElementById('command-input');
+            const sendBtn = document.getElementById('send-btn');
 
-        <!-- Character Stats Section -->
-        <div class="character-stats">
-            <div class="stats-left">
-                <div><span class="stat-name">Character:</span> <span id="char-name" class="stat-value">Unknown</span></div>
-                <div><span class="stat-name">Class:</span> <span id="char-class" class="stat-value">Unknown</span></div>
-                <div><span class="stat-name">Race:</span> <span id="char-race" class="stat-value">Unknown</span></div>
-                <div><span class="stat-name">Level:</span> <span id="char-level" class="stat-value">1</span></div>
-                <div><span class="stat-name">HP:</span> <span id="char-hp" class="stat-value">[0/0]</span></div>
-                <div><span class="stat-name">AC:</span> <span id="char-ac" class="stat-value">10</span></div>
-            </div>
-            <div class="stats-right">
-                <div><span class="stat-name">STR:</span> <span id="char-str" class="stat-value">0</span></div>
-                <div><span class="stat-name">DEX:</span> <span id="char-dex" class="stat-value">0</span></div>
-                <div><span class="stat-name">CON:</span> <span id="char-con" class="stat-value">0</span></div>
-                <div><span class="stat-name">INT:</span> <span id="char-int" class="stat-value">0</span></div>
-                <div><span class="stat-name">WIS:</span> <span id="char-wis" class="stat-value">0</span></div>
-                <div><span class="stat-name">CHA:</span> <span id="char-cha" class="stat-value">0</span></div>
-            </div>
-        </div>
+            // Focus on input field on page load
+            commandInput.focus();
 
-        <!-- Equipment Section -->
-        <div class="equipment">
-            <div class="equipment-title">Equipped Items:</div>
-            <div id="equipment-list">
-                <div class="equipped-item">Nothing equipped yet</div>
-            </div>
-        </div>
+            // Display welcome message
+            addToTerminal('Welcome to BFRPG MUD! Type "help" for a list of commands.', false);
 
-        <!-- Output Panel -->
-        <div class="output-panel" id="output-panel">
-            Welcome to the Basic Fantasy Role-Playing Game MUD
-            Type 'help' for a list of commands.
-        </div>
+            // Function to add text to the terminal with proper formatting
+            function addToTerminal(text, isCommand) {
+                const element = document.createElement('div');
+                
+                if (isCommand) {
+                    element.className = 'command-line';
+                    element.textContent = '> ' + text;
+                } else {
+                    element.className = 'response-line';
+                    element.textContent = text;
+                }
+                
+                terminal.appendChild(element);
+                scrollToBottom();
+            }
+            
+            // Function to ensure the terminal scrolls to the bottom
+            function scrollToBottom() {
+                requestAnimationFrame(() => {
+                    terminal.scrollTop = terminal.scrollHeight;
+                });
+            }
 
-        <!-- Chat Panel -->
-        <div class="chat-panel" id="chat-panel">
-            <div class="system-message">* System: Welcome to the realm! Type '/help' for chat commands.</div>
-        </div>
+            // Function to send command
+            function sendCommand() {
+                const command = commandInput.value.trim();
+                if (command) {
+                    // Display the command
+                    addToTerminal(command, true);
+                    
+                    // Clear input
+                    commandInput.value = '';
+                    
+                    // Simulate responses for demo
+                    if (command.toLowerCase() === 'help') {
+                        addToTerminal('Available commands:\nhelp - Show this help\nlook - Look around\ninventory - Check your inventory', false);
+                    } else {
+                        addToTerminal('Command not implemented in demo UI. Connect via the API for full functionality.', false);
+                    }
+                    
+                    // Keep focus on input after command execution
+                    setTimeout(() => commandInput.focus(), 0);
+                }
+            }
 
-        <!-- Command Input -->
-        <div>
-            <input type="text" id="command-input" class="command-input" placeholder="> Enter command...">
-        </div>
-    </div>
+            // Event listeners
+            sendBtn.addEventListener('click', sendCommand);
+            commandInput.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    sendCommand();
+                }
+            });
+            
+            // Keep focus on input field when clicking anywhere in the terminal
+            terminal.addEventListener('click', function() {
+                commandInput.focus();
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                scrollToBottom();
+            });
+            
+            // Set initial scroll position
+            scrollToBottom();
+        });
+    </script>
 </body>
 </html> 

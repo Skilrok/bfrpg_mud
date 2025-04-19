@@ -241,6 +241,121 @@ async def get_character(
         )
 
 
+@router.patch("/{character_id}/state", response_model=schemas.Character)
+async def update_character_state(
+    character_id: int,
+    state_update: schemas.CharacterStateUpdate,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """Update a character's state (hit points, experience, gold, etc.)"""
+    try:
+        # Find the character
+        character = db.query(models.Character).filter(
+            models.Character.id == character_id,
+            models.Character.user_id == current_user.id
+        ).first()
+        
+        if not character:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Character not found"
+            )
+        
+        # Update character state with non-None values from the request
+        update_data = state_update.dict(exclude_unset=True, exclude_none=True)
+        
+        # Handle the update
+        for key, value in update_data.items():
+            if hasattr(character, key):
+                setattr(character, key, value)
+        
+        # Check for level up based on experience
+        if "experience" in update_data and character.experience >= character.level * 2000:
+            # Character leveled up
+            character.level = character.experience // 2000 + 1
+            
+            # Increase hit points based on class
+            hit_die = get_hit_die_for_class(character.character_class, character.race)
+            
+            # Roll for additional hit points and add CON modifier
+            # For simplicity, we're using random.randint here, but you might want a more
+            # controlled approach in a real game
+            con_modifier = get_ability_modifier(character.constitution)
+            hp_roll = random.randint(1, hit_die) + con_modifier
+            if hp_roll < 1:
+                hp_roll = 1  # Minimum 1 HP per level
+                
+            character.hit_points += hp_roll
+        
+        # Save changes
+        db.commit()
+        db.refresh(character)
+        
+        # Convert SQLAlchemy model to Pydantic model
+        return schemas.Character.from_orm(character)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating character state: {e}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error updating character state: {str(e)}"
+        )
+
+
+@router.delete("/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_character(
+    character_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user)
+):
+    """Delete a character"""
+    try:
+        # Find the character
+        character = db.query(models.Character).filter(
+            models.Character.id == character_id,
+            models.Character.user_id == current_user.id
+        ).first()
+        
+        if not character:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Character not found"
+            )
+        
+        # Check for associated resources (like hirelings) that may need cleanup
+        hirelings = db.query(models.Hireling).filter(
+            models.Hireling.master_id == character.id
+        ).all()
+        
+        # Update hirelings to no longer be associated with this character
+        for hireling in hirelings:
+            hireling.master_id = None
+            # Mark them as available again
+            hireling.is_available = True
+        
+        # Delete the character
+        db.delete(character)
+        db.commit()
+        
+        return None
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting character: {e}")
+        traceback.print_exc()
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting character: {str(e)}"
+        )
+
+
 # Helper functions
 def calculate_saving_throws(char_class: schemas.CharacterClass, level: int, 
                            race: schemas.CharacterRace) -> Dict[str, int]:
@@ -441,3 +556,45 @@ def equip_starting_items(character: models.Character):
         print(f"Error equipping starting items: {e}")
         traceback.print_exc()
         raise
+
+
+# Helper function for state management
+def get_hit_die_for_class(character_class: models.CharacterClass, 
+                         race: models.CharacterRace) -> int:
+    """Get the hit die size for a character class"""
+    hit_dice = {
+        models.CharacterClass.FIGHTER: 8,
+        models.CharacterClass.CLERIC: 6,
+        models.CharacterClass.MAGIC_USER: 4,
+        models.CharacterClass.THIEF: 4,
+        models.CharacterClass.FIGHTER_MAGIC_USER: 6,  # Elves roll d6 for HP
+        models.CharacterClass.MAGIC_USER_THIEF: 4
+    }
+    
+    hit_die = hit_dice[character_class]
+    
+    # Halflings and Elves never roll larger than d6 for hit points
+    if race in [models.CharacterRace.HALFLING, models.CharacterRace.ELF] and hit_die > 6:
+        hit_die = 6
+        
+    return hit_die
+
+
+def get_ability_modifier(score: int) -> int:
+    """Calculate ability score modifier based on BFRPG rules"""
+    if score == 3:
+        return -3
+    elif 4 <= score <= 5:
+        return -2
+    elif 6 <= score <= 8:
+        return -1
+    elif 9 <= score <= 12:
+        return 0
+    elif 13 <= score <= 15:
+        return 1
+    elif 16 <= score <= 17:
+        return 2
+    elif score == 18:
+        return 3
+    else:
+        return 0

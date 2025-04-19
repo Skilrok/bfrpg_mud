@@ -6,7 +6,8 @@ import os
 from dotenv import load_dotenv
 import traceback
 from app.database import get_db
-from app.routers import auth, users, characters, items, combat, hirelings, websocket
+from app.routers import auth, users, characters, items, combat, hirelings, commands
+from app.websockets import WebSocketManager
 
 # Load environment variables
 load_dotenv()
@@ -30,23 +31,74 @@ app.include_router(characters.router, prefix="/api/characters", tags=["character
 app.include_router(items.router, prefix="/api/items", tags=["items"])
 app.include_router(combat.router, prefix="/api/combat", tags=["combat"])
 app.include_router(hirelings.router, prefix="/api/hirelings", tags=["hirelings"])
-app.include_router(websocket.router, tags=["websocket"])
+app.include_router(commands.router, prefix="/api/commands", tags=["commands"])
+app.include_router(commands.router, prefix="/api/game", tags=["game"])
+
+# Add WebSocket connection endpoint
+ws_manager = WebSocketManager(app)
+
+# Create static directory if it doesn't exist
+static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+# Create CSS directory if it doesn't exist
+css_dir = os.path.join(static_dir, "css")
+if not os.path.exists(css_dir):
+    os.makedirs(css_dir)
+
+# Create JS directory if it doesn't exist
+js_dir = os.path.join(static_dir, "js")
+if not os.path.exists(js_dir):
+    os.makedirs(js_dir)
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# Mount CSS and JS directly for correct path resolution
+app.mount("/css", StaticFiles(directory=css_dir), name="css")
+app.mount("/js", StaticFiles(directory=js_dir), name="js")
 
-@app.get("/", response_class=HTMLResponse)
-async def root():
+@app.get("/")
+async def root(request: Request):
+    """Serve the MUD UI or return API info based on Accept header"""
+    # Check if the client accepts HTML
+    accept_header = request.headers.get("accept", "")
+    if "text/html" in accept_header:
+        # Serve login HTML UI
+        with open("static/login.html", "r") as f:
+            return HTMLResponse(content=f.read())
+    # Default to JSON response for API clients
+    return {"message": "Welcome to BFRPG MUD API"}
+
+@app.get("/index.html", response_class=HTMLResponse)
+async def index_html():
     """Serve the MUD UI"""
     with open("static/index.html", "r") as f:
         return f.read()
 
+@app.get("/login.html", response_class=HTMLResponse)
+async def login():
+    """Serve the login page"""
+    with open("static/login.html", "r") as f:
+        return f.read()
 
-@app.get("/api")
-async def api_root():
-    """API root endpoint"""
-    return {"message": "Welcome to BFRPG MUD API"}
+@app.get("/forgot-password.html", response_class=HTMLResponse)
+async def forgot_password():
+    """Serve the forgot password page"""
+    with open("static/forgot-password.html", "r") as f:
+        return f.read()
 
+@app.get("/reset-password.html", response_class=HTMLResponse)
+async def reset_password():
+    """Serve the reset password page"""
+    with open("static/reset-password.html", "r") as f:
+        return f.read()
+
+@app.get("/game.html", response_class=HTMLResponse)
+async def game():
+    """Serve the game UI"""
+    with open("static/game.html", "r") as f:
+        return f.read()
 
 @app.get("/health")
 async def health_check():
