@@ -1,8 +1,15 @@
-# Python
+# Testing artifacts
+.coverage
+coverage.xml
+htmlcov/
+.pytest_cache/
+test_database_*.db
+.env.test
+
+# Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 build/
 develop-eggs/
@@ -16,20 +23,28 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Environment
+.env
+.env.local
+.venv
 env/
 venv/
 ENV/
+env.bak/
+venv.bak/
 
-# IDE
+# Editor directories and files
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
+.DS_Store
 
 # Logs
 *.log
@@ -44,4 +59,4 @@ ENV/
 
 # OS
 .DS_Store
-Thumbs.db 
+Thumbs.db

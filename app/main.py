@@ -1,24 +1,33 @@
-from fastapi import FastAPI, Depends, HTTPException, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse
+import logging
 import os
-from dotenv import load_dotenv
 import traceback
-from app.database import get_db
-from app.routers import auth, users, characters, items, combat, hirelings, commands
+
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+
+from app.config import configure_app_from_env
+from app.database import get_db, init_db
+from app.routers import auth, characters, combat, commands, hirelings, items, users
 from app.websockets import WebSocketManager
 
-# Load environment variables
-load_dotenv()
+logger = logging.getLogger(__name__)
+
+# Load environment variables and configure the app
+settings = configure_app_from_env()
 
 # Create FastAPI app
-app = FastAPI(title="BFRPG MUD API")
+app = FastAPI(
+    title="BFRPG MUD API",
+    description="Basic Fantasy RPG Multi-User Dungeon",
+    version="1.0.0",
+)
 
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # In production, replace with specific origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -32,13 +41,14 @@ app.include_router(items.router, prefix="/api/items", tags=["items"])
 app.include_router(combat.router, prefix="/api/combat", tags=["combat"])
 app.include_router(hirelings.router, prefix="/api/hirelings", tags=["hirelings"])
 app.include_router(commands.router, prefix="/api/commands", tags=["commands"])
-app.include_router(commands.router, prefix="/api/game", tags=["game"])
 
 # Add WebSocket connection endpoint
 ws_manager = WebSocketManager(app)
 
 # Create static directory if it doesn't exist
-static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static")
+static_dir = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static"
+)
 if not os.path.exists(static_dir):
     os.makedirs(static_dir)
 
@@ -58,6 +68,16 @@ app.mount("/static", StaticFiles(directory=static_dir), name="static")
 app.mount("/css", StaticFiles(directory=css_dir), name="css")
 app.mount("/js", StaticFiles(directory=js_dir), name="js")
 
+
+# Startup event to initialize the database
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup"""
+    logger.info("Initializing application...")
+    await init_db()
+    logger.info("Application initialized successfully")
+
+
 @app.get("/")
 async def root(request: Request):
     """Serve the MUD UI or return API info based on Accept header"""
@@ -65,44 +85,75 @@ async def root(request: Request):
     accept_header = request.headers.get("accept", "")
     if "text/html" in accept_header:
         # Serve login HTML UI
-        with open("static/login.html", "r") as f:
-            return HTMLResponse(content=f.read())
+        try:
+            with open(os.path.join(static_dir, "login.html"), "r") as f:
+                return HTMLResponse(content=f.read())
+        except FileNotFoundError:
+            logger.error("login.html not found in static directory")
+            return {"message": "Welcome to BFRPG MUD API (UI files not found)"}
     # Default to JSON response for API clients
     return {"message": "Welcome to BFRPG MUD API"}
+
 
 @app.get("/index.html", response_class=HTMLResponse)
 async def index_html():
     """Serve the MUD UI"""
-    with open("static/index.html", "r") as f:
-        return f.read()
+    try:
+        with open(os.path.join(static_dir, "index.html"), "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("index.html not found in static directory")
+        raise HTTPException(status_code=404, detail="UI file not found")
+
 
 @app.get("/login.html", response_class=HTMLResponse)
 async def login():
     """Serve the login page"""
-    with open("static/login.html", "r") as f:
-        return f.read()
+    try:
+        with open(os.path.join(static_dir, "login.html"), "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("login.html not found in static directory")
+        raise HTTPException(status_code=404, detail="Login page not found")
+
 
 @app.get("/forgot-password.html", response_class=HTMLResponse)
 async def forgot_password():
     """Serve the forgot password page"""
-    with open("static/forgot-password.html", "r") as f:
-        return f.read()
+    try:
+        with open(os.path.join(static_dir, "forgot-password.html"), "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("forgot-password.html not found in static directory")
+        raise HTTPException(status_code=404, detail="Forgot password page not found")
+
 
 @app.get("/reset-password.html", response_class=HTMLResponse)
 async def reset_password():
     """Serve the reset password page"""
-    with open("static/reset-password.html", "r") as f:
-        return f.read()
+    try:
+        with open(os.path.join(static_dir, "reset-password.html"), "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("reset-password.html not found in static directory")
+        raise HTTPException(status_code=404, detail="Reset password page not found")
+
 
 @app.get("/game.html", response_class=HTMLResponse)
 async def game():
     """Serve the game UI"""
-    with open("static/game.html", "r") as f:
-        return f.read()
+    try:
+        with open(os.path.join(static_dir, "game.html"), "r") as f:
+            return f.read()
+    except FileNotFoundError:
+        logger.error("game.html not found in static directory")
+        raise HTTPException(status_code=404, detail="Game UI not found")
+
 
 @app.get("/health")
 async def health_check():
-    return {"status": "healthy"}
+    """Health check endpoint for monitoring"""
+    return {"status": "healthy", "environment": settings.ENVIRONMENT}
 
 
 @app.get("/debug")
@@ -111,42 +162,55 @@ async def debug_info(db=Depends(get_db)):
     Debug endpoint to check if database connection is working
     and to see what tables exist in the database
     """
+    # Only allow in development mode
+    if settings.ENVIRONMENT != "development":
+        raise HTTPException(
+            status_code=403, detail="Debug endpoint only available in development mode"
+        )
+
     try:
         # Try to query the User model to see if the table exists
         from app.models import User
+
         user_count = db.query(User).count()
-        
+
         # Get a list of all tables in the database
         from sqlalchemy import inspect
+
         inspector = inspect(db.bind)
         tables = inspector.get_table_names()
-        
+
         # Get column info for users table
         users_columns = inspector.get_columns("users")
-        users_column_info = [{"name": col["name"], "type": str(col["type"])} for col in users_columns]
-        
+        users_column_info = [
+            {"name": col["name"], "type": str(col["type"])} for col in users_columns
+        ]
+
         # Get column info for characters table
         characters_columns = inspector.get_columns("characters")
-        characters_column_info = [{"name": col["name"], "type": str(col["type"])} for col in characters_columns]
-        
+        characters_column_info = [
+            {"name": col["name"], "type": str(col["type"])}
+            for col in characters_columns
+        ]
+
         return {
             "database_connection": "working",
             "tables": tables,
             "user_count": user_count,
             "users_columns": users_column_info,
-            "characters_columns": characters_column_info
+            "characters_columns": characters_column_info,
         }
     except Exception as e:
-        return {
-            "error": str(e),
-            "traceback": traceback.format_exc()
-        }
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", 8000))
-    debug = os.getenv("DEBUG", "False").lower() == "true"
-    uvicorn.run("app.main:app", host=host, port=port, reload=debug)
+    # Use settings from configuration
+    host = settings.HOST
+    port = settings.PORT
+    reload = settings.RELOAD if settings.ENVIRONMENT == "development" else False
+
+    logger.info(f"Starting server on {host}:{port} (reload={reload})")
+    uvicorn.run("app.main:app", host=host, port=port, reload=reload)

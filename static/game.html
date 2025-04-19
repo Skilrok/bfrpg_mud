@@ -4,260 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BFRPG MUD - Game</title>
-    <style>
-        :root {
-            --terminal-green: #0f0;
-            --terminal-bg: #000;
-            --terminal-font: 'Courier New', monospace;
-            --glow-color: rgba(0, 255, 0, 0.5);
-        }
-        
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-        
-        body {
-            background-color: var(--terminal-bg);
-            color: var(--terminal-green);
-            font-family: var(--terminal-font);
-            font-size: 16px;
-            line-height: 1.5;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .scanline {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, transparent, transparent 50%, rgba(0, 0, 0, 0.2) 50%, transparent);
-            background-size: 100% 4px;
-            z-index: 1;
-            pointer-events: none;
-            animation: scanline 10s linear infinite;
-        }
-        
-        @keyframes scanline {
-            0% { background-position: 0 0; }
-            100% { background-position: 0 100%; }
-        }
-        
-        .game-container {
-            display: flex;
-            flex-direction: column;
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            padding: 20px;
-            z-index: 2;
-        }
-        
-        .header {
-            position: absolute;
-            top: 0;
-            left: 20px;
-            right: 20px;
-            height: 50px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid var(--terminal-green);
-            padding: 10px 0;
-            background-color: var(--terminal-bg);
-            z-index: 3;
-        }
-        
-        .game-title {
-            font-size: 1.5rem;
-            font-weight: bold;
-        }
-        
-        .user-info {
-            text-align: right;
-        }
-        
-        .terminal {
-            position: absolute;
-            top: 60px; /* Space for header */
-            left: 20px;
-            right: 20px;
-            bottom: 20px;
-            background-color: rgba(0, 10, 0, 0.9);
-            border: 2px solid var(--terminal-green);
-            border-radius: 5px;
-            box-shadow: 0 0 20px var(--glow-color);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-        
-        .game-output {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 50px; /* Height of input area */
-            overflow-y: auto;
-            padding: 10px;
-            white-space: pre-wrap;
-            font-family: var(--terminal-font);
-            scrollbar-width: thin;
-            scrollbar-color: var(--terminal-green) var(--terminal-bg);
-        }
-        
-        .command-input-container {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 50px;
-            background-color: rgba(0, 10, 0, 0.95);
-            border-top: 1px solid var(--terminal-green);
-            display: flex;
-            align-items: center;
-            padding: 0 10px;
-        }
-        
-        .prompt {
-            color: var(--terminal-green);
-            margin-right: 10px;
-            font-weight: bold;
-        }
-        
-        #command-input {
-            flex: 1;
-            background-color: transparent;
-            border: none;
-            color: var(--terminal-green);
-            font-family: var(--terminal-font);
-            font-size: 16px;
-            outline: none;
-            height: 30px;
-        }
-        
-        .sidebar {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            width: 250px;
-            background-color: rgba(0, 10, 0, 0.9);
-            border: 2px solid var(--terminal-green);
-            border-radius: 5px;
-            padding: 10px;
-            box-shadow: 0 0 10px var(--glow-color);
-            z-index: 3;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            max-height: calc(100vh - 100px);
-            overflow-y: auto;
-        }
-        
-        .sidebar-title {
-            text-align: center;
-            margin-bottom: 10px;
-            border-bottom: 1px solid var(--terminal-green);
-            padding-bottom: 5px;
-        }
-        
-        .character-panel, .inventory-panel, .journal-panel {
-            margin-bottom: 15px;
-        }
-        
-        .journal-panel {
-            border-top: 1px solid var(--terminal-green);
-            padding-top: 15px;
-        }
-        
-        .journal-content {
-            font-family: var(--terminal-font);
-            font-size: 14px;
-            white-space: pre-wrap;
-            max-height: 200px;
-            overflow-y: auto;
-            padding: 5px;
-            border: 1px solid var(--terminal-green);
-            border-radius: 3px;
-            background-color: rgba(0, 20, 0, 0.3);
-        }
-        
-        .panel-title {
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-        
-        .equipment-list, .stats-list {
-            list-style: none;
-            padding-left: 10px;
-        }
-        
-        .equipment-list li, .stats-list li {
-            margin-bottom: 3px;
-        }
-        
-        /* CRT effect */
-        body::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: repeating-linear-gradient(
-                0deg, 
-                rgba(0, 0, 0, 0.15), 
-                rgba(0, 0, 0, 0.15) 1px, 
-                transparent 1px, 
-                transparent 2px
-            );
-            pointer-events: none;
-            z-index: 1;
-        }
-        
-        /* Custom scrollbar for webkit browsers */
-        .game-output::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .game-output::-webkit-scrollbar-track {
-            background: var(--terminal-bg);
-        }
-        
-        .game-output::-webkit-scrollbar-thumb {
-            background-color: var(--terminal-green);
-            border-radius: 4px;
-        }
-        
-        .journal-entry {
-            margin-bottom: 10px;
-            padding: 5px;
-            border-bottom: 1px solid rgba(0, 255, 0, 0.2);
-        }
-        
-        .entry-date {
-            font-size: 12px;
-            color: rgba(0, 255, 0, 0.7);
-            margin-bottom: 3px;
-        }
-        
-        .entry-text {
-            font-size: 14px;
-            line-height: 1.4;
-        }
-    </style>
+    <link rel="stylesheet" href="css/game.css">
 </head>
 <body>
     <div class="scanline"></div>
-    
+
     <div class="game-container">
         <div class="header">
             <div class="game-title">BFRPG MUD</div>
@@ -266,23 +17,21 @@
                 <button id="logout-btn" class="btn">Logout</button>
             </div>
         </div>
-        
+
         <div class="terminal">
             <div class="game-output" id="game-output">Welcome to the Basic Fantasy Role-Playing Game MUD!
 Type 'help' for a list of commands.
             </div>
-            <div class="input-area">
-                <div class="command-input-container">
-                    <div class="prompt">></div>
-                    <input type="text" id="command-input" autocomplete="off" autofocus>
-                </div>
+            <div class="command-input-container">
+                <div class="prompt">></div>
+                <input type="text" id="command-input" autocomplete="off" autofocus>
             </div>
         </div>
     </div>
-    
+
     <div class="sidebar">
         <div class="sidebar-title">Character</div>
-        
+
         <div class="character-panel">
             <div id="character-name" class="panel-title">Loading character...</div>
             <div id="character-info">
@@ -294,246 +43,20 @@ Type 'help' for a list of commands.
                 </ul>
             </div>
         </div>
-        
+
         <div class="inventory-panel">
             <div class="panel-title">Equipment</div>
             <ul class="equipment-list" id="equipment-list">
                 <li>Loading equipment...</li>
             </ul>
         </div>
-        
+
         <div class="journal-panel">
             <div class="panel-title">Journal</div>
             <div id="journal-content" class="journal-content">No journal entries yet.</div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const gameOutput = document.getElementById('game-output');
-            const commandInput = document.getElementById('command-input');
-            const usernameDisplay = document.getElementById('username');
-            const logoutBtn = document.getElementById('logout-btn');
-            const characterName = document.getElementById('character-name');
-            const characterRace = document.getElementById('character-race');
-            const characterClass = document.getElementById('character-class');
-            const characterLevel = document.getElementById('character-level');
-            const characterHp = document.getElementById('character-hp');
-            const equipmentList = document.getElementById('equipment-list');
-            const journalContent = document.getElementById('journal-content');
-            
-            // Check if logged in
-            const token = localStorage.getItem('token');
-            const username = localStorage.getItem('username');
-            const characterId = localStorage.getItem('characterId');
-            
-            if (!token) {
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            // Set username display
-            usernameDisplay.textContent = username || 'Unknown';
-            
-            // Logout function
-            logoutBtn.addEventListener('click', function() {
-                localStorage.removeItem('token');
-                localStorage.removeItem('username');
-                localStorage.removeItem('characterId');
-                window.location.href = 'login.html';
-            });
-            
-            // Function to add output to the terminal
-            function addOutput(text) {
-                gameOutput.textContent += '\n' + text;
-                gameOutput.scrollTop = gameOutput.scrollHeight;
-            }
-            
-            // Handle command input
-            commandInput.addEventListener('keydown', async function(event) {
-                if (event.key === 'Enter') {
-                    const command = commandInput.value;
-                    if (!command.trim()) return;
-                    
-                    // Echo command
-                    addOutput(`> ${command}`);
-                    
-                    // Send command to API
-                    try {
-                        const response = await fetch('/api/game', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Authorization': `Bearer ${token}`
-                            },
-                            body: JSON.stringify({ command: command })
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            addOutput(data.message);
-                        } else {
-                            // If the command isn't handled by the API, provide a client-side response
-                            handleLocalCommand(command);
-                        }
-                    } catch (error) {
-                        console.error('API error:', error);
-                        handleLocalCommand(command);
-                    }
-                    
-                    // Clear input
-                    commandInput.value = '';
-                }
-            });
-            
-            // Handle commands locally when API fails or isn't available
-            function handleLocalCommand(command) {
-                command = command.toLowerCase().trim();
-                
-                if (command === 'help') {
-                    addOutput('Available commands:\n' +
-                              '  help - Show this help text\n' +
-                              '  look - Look around\n' +
-                              '  inventory - Check your inventory\n' +
-                              '  stats - Show your character stats\n' +
-                              '  quit or logout - Log out from the game');
-                } else if (command === 'look') {
-                    addOutput('You are in the starting area. The MUD is still under development.');
-                } else if (command === 'inventory' || command === 'i') {
-                    addOutput('You are carrying:');
-                    // Display placeholder inventory
-                    addOutput('  Backpack\n  Rations (3 days)\n  Torch\n  Pouch with 10 gold pieces');
-                } else if (command === 'stats') {
-                    addOutput('Character Stats:');
-                    addOutput('  Strength: ?\n  Intelligence: ?\n  Wisdom: ?\n  Dexterity: ?\n  Constitution: ?\n  Charisma: ?');
-                } else if (command === 'quit' || command === 'logout') {
-                    logoutBtn.click();
-                } else {
-                    addOutput("Unknown command. Type 'help' for a list of commands.");
-                }
-            }
-            
-            // Load character data if available
-            if (characterId) {
-                loadCharacterData(characterId);
-            } else {
-                addOutput('\nYou need to select or create a character to play.');
-                createCharacterPrompt();
-            }
-            
-            // Function to load character data
-            async function loadCharacterData(id) {
-                try {
-                    const response = await fetch(`/api/characters/${id}`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        // Update character panel
-                        characterName.textContent = data.name;
-                        characterRace.textContent = `Race: ${data.race}`;
-                        characterClass.textContent = `Class: ${data.character_class}`;
-                        characterLevel.textContent = `Level: ${data.level}`;
-                        characterHp.textContent = `HP: ${data.hit_points}/${data.hit_points}`;
-                        
-                        // Load inventory and journal
-                        loadInventory(id);
-                        loadJournal(id);
-                        
-                        addOutput(`\nCharacter ${data.name} loaded. Welcome back!`);
-                    } else {
-                        console.error('Failed to load character data');
-                        createCharacterPrompt();
-                    }
-                } catch (error) {
-                    console.error('Character data error:', error);
-                    addOutput('\nFailed to load character data. Please try again later.');
-                }
-            }
-            
-            // Function to load inventory
-            async function loadInventory(characterId) {
-                try {
-                    const response = await fetch(`/api/characters/${characterId}/inventory`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        
-                        // Update equipment list
-                        equipmentList.innerHTML = '';
-                        
-                        if (data.length === 0) {
-                            equipmentList.innerHTML = '<li>No equipment</li>';
-                        } else {
-                            data.forEach(item => {
-                                const li = document.createElement('li');
-                                li.textContent = item.name;
-                                equipmentList.appendChild(li);
-                            });
-                        }
-                    } else {
-                        equipmentList.innerHTML = '<li>Failed to load equipment</li>';
-                    }
-                } catch (error) {
-                    console.error('Inventory error:', error);
-                    equipmentList.innerHTML = '<li>Error loading equipment</li>';
-                }
-            }
-            
-            // Function to load journal entries
-            async function loadJournal(characterId) {
-                try {
-                    const response = await fetch(`/api/characters/${characterId}/journal`, {
-                        headers: {
-                            'Authorization': `Bearer ${token}`
-                        }
-                    });
-                    
-                    if (response.ok) {
-                        const data = await response.json();
-                        if (data && data.entries && data.entries.length > 0) {
-                            journalContent.innerHTML = data.entries.map(entry => 
-                                `<div class="journal-entry">
-                                    <div class="entry-date">${new Date(entry.timestamp).toLocaleDateString()}</div>
-                                    <div class="entry-text">${entry.text}</div>
-                                 </div>`
-                            ).join('\n');
-                        } else {
-                            journalContent.textContent = 'No journal entries yet.';
-                        }
-                    } else {
-                        journalContent.textContent = 'Failed to load journal entries.';
-                    }
-                } catch (error) {
-                    console.error('Journal error:', error);
-                    journalContent.textContent = 'Error loading journal entries.';
-                }
-            }
-            
-            // Prompt for character creation
-            function createCharacterPrompt() {
-                equipmentList.innerHTML = '<li>No equipment</li>';
-                characterName.textContent = 'No Character Selected';
-                characterRace.textContent = 'Race: -';
-                characterClass.textContent = 'Class: -';
-                characterLevel.textContent = 'Level: -';
-                characterHp.textContent = 'HP: -/-';
-                
-                addOutput('\nYou need to create a character to play.');
-                addOutput("Type 'create character <name>' to create a new character.");
-            }
-            
-            // Focus the command input
-            commandInput.focus();
-        });
-    </script>
+    <script src="js/game.js"></script>
 </body>
-</html> 
+</html>

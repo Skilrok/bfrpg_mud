@@ -1,8 +1,10 @@
 import datetime
-from sqlalchemy import Column, Integer, String, Boolean, DateTime
+
+from sqlalchemy import Boolean, Column, DateTime, Integer, String
 from sqlalchemy.orm import relationship
 
-from app.database import Base
+from app.models.base import Base
+
 
 class User(Base):
     __tablename__ = "users"
@@ -18,8 +20,8 @@ class User(Base):
     characters = relationship("Character", back_populates="owner")
     hirelings = relationship("Hireling", back_populates="owner")
     command_history = relationship(
-        "CommandHistory", 
-        back_populates="user", 
+        "CommandHistory",
+        back_populates="user",
         cascade="all, delete",
-        passive_deletes=True
-    ) 
+        passive_deletes=True,
+    )

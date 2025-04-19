@@ -1,19 +1,32 @@
+"""
+Test configuration and common fixtures.
+
+This module contains pytest fixtures for setting up the test environment,
+database, and common test objects.
+"""
+
 import os
 import threading
 import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Generator
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
-from app.constants import CharacterClass, CharacterRace, ItemType
 from app.database import Base, get_db
 from app.main import app
-from app.models import Character, Hireling, Item, User
-from app.routers.auth import create_access_token
+from app.models import Character, User
+from app.routers.auth import create_access_token, get_current_user
+from tests.factories import (
+    create_test_character,
+    create_test_hireling,
+    create_test_item,
+    create_test_room,
+    create_test_token,
+    create_test_user,
+)
 
 # Set testing environment variable for all tests
 os.environ["TESTING"] = "True"
@@ -35,7 +48,11 @@ TEST_DB_URL = f"sqlite:///./{TEST_DB_PATH}"
 
 @pytest.fixture(scope="session")
 def test_engine():
-    """Create a SQLAlchemy engine for testing"""
+    """
+    Create a SQLAlchemy engine for testing.
+
+    This fixture creates a database engine that is used for the entire test session.
+    """
     engine = create_engine(
         TEST_DB_URL,
         connect_args={"check_same_thread": False},
@@ -60,14 +77,17 @@ def test_engine():
         if os.path.exists(TEST_DB_PATH):
             os.remove(TEST_DB_PATH)
     except OSError as e:
-        print(
-            f"Failed to remove test database: {e}"
-        )  # Log error instead of bare except
+        print(f"Failed to remove test database: {e}")
 
 
 @pytest.fixture
-def test_db(test_engine):
-    """Create a fresh database session for each test"""
+def test_db(test_engine) -> Generator[Session, None, None]:
+    """
+    Create a fresh database session for each test.
+
+    This fixture provides a clean database session for each test, and ensures
+    that all tables are cleared before and after each test.
+    """
     # Create a thread-local session factory using scoped_session
     TestSessionLocal = scoped_session(
         sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
@@ -106,7 +126,6 @@ def test_db(test_engine):
     session.commit()
 
     # Clean up
-    os.environ.pop("TESTING", None)
     session.close()
 
     # Remove the session from the registry
@@ -114,42 +133,84 @@ def test_db(test_engine):
 
 
 @pytest.fixture
-def client(test_db):
-    """Create a test client with a new database session"""
+def client(test_db) -> TestClient:
+    """
+    Create a test client with a new database session.
+
+    This fixture provides a FastAPI TestClient for making HTTP requests to the API.
+    """
     with TestClient(app) as test_client:
         yield test_client
 
 
 @pytest.fixture
-def test_user(test_db):
-    """Create a test user for each test"""
-    # Create a unique user for each test
-    unique_id = uuid.uuid4().hex[:8]
-    username = f"testuser_{unique_id}"
-    plain_password = "TestPassword123!"
+def test_user(test_db) -> User:
+    """
+    Create a test user for each test.
 
-    # Use a pre-defined hash for testing
-    hashed_password = f"test_hash_{plain_password}"
+    This fixture provides a user for authentication and authorization tests.
+    """
+    user = create_test_user(test_db)
+    return user
 
-    user = User(
-        username=username,
-        email=f"{username}@example.com",
-        hashed_password=hashed_password,
-        is_active=True,
+
+@pytest.fixture
+def test_admin(test_db) -> User:
+    """
+    Create a test admin user for each test.
+
+    This fixture provides an admin user for testing admin-only functionality.
+    """
+    user = create_test_user(
+        test_db, username="admin", email="admin@example.com", is_active=True
     )
-    test_db.add(user)
+    # Set admin role directly in the user record
+    user.is_admin = True
     test_db.commit()
     test_db.refresh(user)
+    return user
+
+
+@pytest.fixture
+def auth_headers(test_user) -> Dict[str, str]:
+    """
+    Create authentication headers for testing.
+
+    This fixture provides the Authorization header with a valid JWT token
+    for the test user.
+    """
+    token = create_test_token(test_user.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def auth_headers_admin(test_admin) -> Dict[str, str]:
+    """
+    Create authentication headers for admin testing.
+
+    This fixture provides the Authorization header with a valid JWT token
+    for the admin user.
+    """
+    token = create_test_token(test_admin.id)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def mock_current_user(test_user):
+    """
+    Mock the current_user dependency.
+
+    This fixture allows tests to run without authentication by mocking
+    the get_current_user dependency.
+    """
 
     # Override the auth dependency for testing
-    from app.routers.auth import get_current_user
-
     async def override_get_current_user():
-        return user
+        return test_user
 
     app.dependency_overrides[get_current_user] = override_get_current_user
 
-    yield user
+    yield test_user
 
     # Clean up the override after the test
     if get_current_user in app.dependency_overrides:
@@ -157,178 +218,74 @@ def test_user(test_db):
 
 
 @pytest.fixture
-def auth_headers(test_user):
-    """Create authentication headers for testing"""
-    # Generate a test token directly with a format the auth system will recognize
-    token = f"test_token_for_{test_user.id}"
-    return {"Authorization": f"Bearer {token}"}
+def test_character(test_db, test_user) -> Character:
+    """
+    Create a test character for each test.
+
+    This fixture provides a character for testing character-related functionality.
+    """
+    character = create_test_character(test_db, test_user.id)
+    return character
 
 
 @pytest.fixture
-def test_character(test_db, test_user):
-    """Create a test character for each test"""
-    # Create a test character
-    character = Character(
-        name="Test Character",
-        description="A test character",
-        race="human",
-        character_class="fighter",
-        level=1,
-        experience=0,
-        strength=10,
-        intelligence=10,
-        wisdom=10,
-        dexterity=10,
-        constitution=10,
-        charisma=10,
-        hit_points=8,
-        armor_class=10,
-        user_id=test_user.id,
-    )
-    test_db.add(character)
-    test_db.commit()
-    test_db.refresh(character)
-    return character
-
-
-def create_test_user(
-    db, username="testuser", email="test@example.com", password="password123"
-):
-    """Factory function to create a test user"""
-    from app.utils import get_password_hash
-
-    hashed_password = get_password_hash(password)
-    user = User(
-        username=username,
-        email=email,
-        hashed_password=hashed_password,
-        is_active=True,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-def create_test_character(
-    db,
-    user_id: int,
-    name: str = "Test Character",
-    race: CharacterRace = CharacterRace.HUMAN,
-    character_class: CharacterClass = CharacterClass.FIGHTER,
-    level: int = 1,
-    strength: int = 16,
-    intelligence: int = 10,
-    wisdom: int = 10,
-    dexterity: int = 12,
-    constitution: int = 14,
-    charisma: int = 8,
-    hit_points: int = 10,
-    gold: int = 100,
-) -> Character:
+def test_room(test_db):
     """
-    Factory function to create a test character with customizable attributes.
+    Create a test room for each test.
 
-    Args:
-        db: Database session
-        user_id: User ID to associate the character with
-        name: Character name
-        race: Character race (from CharacterRace enum)
-        character_class: Character class (from CharacterClass enum)
-        level: Character level
-        strength, intelligence, wisdom, dexterity, constitution, charisma: Ability scores
-        hit_points: Character hit points
-        gold: Starting gold
-
-    Returns:
-        Character: The created character object
+    This fixture provides a room for testing room-related functionality.
     """
-    character = Character(
-        name=name,
-        race=race,
-        character_class=character_class,
-        level=level,
-        user_id=user_id,
-        strength=strength,
-        intelligence=intelligence,
-        wisdom=wisdom,
-        dexterity=dexterity,
-        constitution=constitution,
-        charisma=charisma,
-        hit_points=hit_points,
-        armor_class=10,  # Base armor class
-        gold=gold,
-        # Initialize empty collections
-        equipment={},
-        inventory={},
-        special_abilities=[],
-        spells_known=[],
-        thief_abilities={},
-    )
-
-    # Add calculated saving throws based on class and level
-    character.save_death_ray_poison = 14  # Default values, should be calculated
-    character.save_magic_wands = 15
-    character.save_paralysis_petrify = 16
-    character.save_dragon_breath = 17
-    character.save_spells = 18
-
-    db.add(character)
-    db.commit()
-    db.refresh(character)
-    return character
+    room = create_test_room(test_db, is_starting_room=True)
+    return room
 
 
-def create_test_item(
-    db,
-    name: str = "Test Item",
-    description: str = "A test item",
-    item_type: ItemType = ItemType.MISCELLANEOUS,
-    value: int = 10,
-    weight: float = 1.0,
-    properties: Optional[Dict[str, Any]] = None,
-) -> Item:
+@pytest.fixture
+def test_item(test_db):
     """
-    Factory function to create a test item with customizable attributes.
+    Create a test item for each test.
 
-    Args:
-        db: Database session
-        name: Item name
-        description: Item description
-        item_type: Type of item (from ItemType enum)
-        value: Value in gold pieces
-        weight: Weight in pounds
-        properties: Additional item properties
-
-    Returns:
-        Item: The created item object
+    This fixture provides an item for testing item-related functionality.
     """
-    if properties is None:
-        properties = {}
-
-    item = Item(
-        name=name,
-        description=description,
-        item_type=item_type,
-        value=value,
-        weight=weight,
-        properties=properties,
-    )
-
-    db.add(item)
-    db.commit()
-    db.refresh(item)
+    item = create_test_item(test_db)
     return item
 
 
-# Teardown to clean up after all tests
+@pytest.fixture
+def test_hireling(test_db):
+    """
+    Create a test hireling for each test.
+
+    This fixture provides a hireling for testing hireling-related functionality.
+    """
+    hireling = create_test_hireling(test_db)
+    return hireling
+
+
+@pytest.fixture(autouse=True)
+def cleanup_dependency_overrides():
+    """
+    Clean up dependency overrides after each test.
+
+    This fixture ensures that dependency overrides are cleaned up
+    even if tests fail.
+    """
+    yield
+    # Clear all dependency overrides
+    app.dependency_overrides.clear()
+
+
 def teardown_module(module):
+    """
+    Clean up after the test module.
+
+    This function is called after all tests in a module have been run.
+    """
     # Clear dependency overrides
     app.dependency_overrides.clear()
 
-    # Remove test database file
-    if os.path.exists(TEST_DB_PATH):
-        try:
+    # Try to remove the test database
+    try:
+        if os.path.exists(TEST_DB_PATH):
             os.remove(TEST_DB_PATH)
-        except:
-            pass
+    except OSError:
+        pass
