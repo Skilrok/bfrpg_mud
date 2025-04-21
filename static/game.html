@@ -9,54 +9,493 @@
 <body>
     <div class="scanline"></div>
 
-    <div class="game-container">
-        <div class="header">
-            <div class="game-title">BFRPG MUD</div>
-            <div class="user-info">
-                Logged in as: <span id="username">Unknown</span>
-                <button id="logout-btn" class="btn">Logout</button>
+    <!-- Character Selection Modal -->
+    <div id="character-selection-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Select Your Character</h2>
+                <button class="close-modal-btn">&times;</button>
             </div>
-        </div>
-
-        <div class="terminal">
-            <div class="game-output" id="game-output">Welcome to the Basic Fantasy Role-Playing Game MUD!
-Type 'help' for a list of commands.
-            </div>
-            <div class="command-input-container">
-                <div class="prompt">></div>
-                <input type="text" id="command-input" autocomplete="off" autofocus>
+            <div class="modal-body">
+                <div id="character-list" class="character-list">
+                    <!-- Characters will be loaded here -->
+                    <div class="loading-message">Loading characters...</div>
+                </div>
+                <div class="character-actions">
+                    <button id="create-character-btn" class="btn">Create New Character</button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="sidebar">
-        <div class="sidebar-title">Character</div>
+    <div class="header">
+        <div class="game-title">BFRPG MUD</div>
+        <div class="user-info">
+            <button id="show-characters-btn" class="btn">Characters</button>
+            Logged in as: <span id="username">Unknown</span>
+            <button id="logout-btn" class="btn">Logout</button>
+        </div>
+    </div>
 
-        <div class="character-panel">
-            <div id="character-name" class="panel-title">Loading character...</div>
-            <div id="character-info">
-                <ul class="stats-list">
-                    <li id="character-race">Race: Unknown</li>
-                    <li id="character-class">Class: Unknown</li>
-                    <li id="character-level">Level: 1</li>
-                    <li id="character-hp">HP: 0/0</li>
-                </ul>
+    <div class="game-container">
+        <!-- Terminal Column -->
+        <div class="terminal-column">
+            <div class="terminal">
+                <div class="game-output" id="game-output">Welcome to the Basic Fantasy Role-Playing Game MUD!
+Type 'help' for a list of commands.
+                </div>
+                <div class="command-input-container">
+                    <div class="prompt">></div>
+                    <input type="text" id="command-input" autocomplete="off" autofocus>
+                </div>
             </div>
         </div>
 
-        <div class="inventory-panel">
-            <div class="panel-title">Equipment</div>
-            <ul class="equipment-list" id="equipment-list">
-                <li>Loading equipment...</li>
-            </ul>
+        <!-- Party Column -->
+        <div class="party-column">
+            <div class="party-title">Party Window</div>
+            <div id="party-members">
+                <div class="party-member">
+                    <div class="party-member-name" id="char-name">Character Name</div>
+                    <div class="party-member-info">
+                        <div id="char-class">Class: Fighter</div>
+                        <div id="char-hp">HP: 10/10</div>
+                    </div>
+                </div>
+                <!-- Other party members will be dynamically added -->
+                <div class="party-member">
+                    <div class="party-member-name">Hireling 1</div>
+                    <div class="party-member-info">
+                        <div>Class: Thief</div>
+                        <div>HP: 6/6</div>
+                    </div>
+                </div>
+                <div class="party-member">
+                    <div class="party-member-name">Hireling 2</div>
+                    <div class="party-member-info">
+                        <div>Class: Magic-User</div>
+                        <div>HP: 4/4</div>
+                    </div>
+                </div>
+                <div class="party-member">
+                    <div class="party-member-name">Hireling 3</div>
+                    <div class="party-member-info">
+                        <div>Class: Cleric</div>
+                        <div>HP: 8/8</div>
+                    </div>
+                </div>
+            </div>
         </div>
 
-        <div class="journal-panel">
-            <div class="panel-title">Journal</div>
-            <div id="journal-content" class="journal-content">No journal entries yet.</div>
+        <!-- Character Column -->
+        <div class="character-column">
+            <!-- Character Sheet Section -->
+            <div class="character-sheet">
+                <div class="character-sheet-title">Character Sheet</div>
+                <div id="character-info">
+                    <div class="char-header">
+                        <div class="char-name-section">
+                            <span class="char-label">Character's Name:</span>
+                            <span id="char-name" class="char-value">Character Name</span>
+                        </div>
+                        <div class="char-details-section">
+                            <div class="char-detail">
+                                <span class="char-label">Race:</span>
+                                <span id="char-race" class="char-value">Human</span>
+                            </div>
+                            <div class="char-detail">
+                                <span class="char-label">Class & Level:</span>
+                                <span id="char-class-level" class="char-value">Fighter 1</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="char-main-section">
+                        <div class="char-abilities">
+                            <div class="ability-box str">
+                                <div class="ability-score" id="char-str">16</div>
+                                <div class="ability-name">STR</div>
+                                <div class="ability-mod" id="char-str-mod">+2</div>
+                            </div>
+                            <div class="ability-box dex">
+                                <div class="ability-score" id="char-dex">14</div>
+                                <div class="ability-name">DEX</div>
+                                <div class="ability-mod" id="char-dex-mod">+1</div>
+                            </div>
+                            <div class="ability-box con">
+                                <div class="ability-score" id="char-con">15</div>
+                                <div class="ability-name">CON</div>
+                                <div class="ability-mod" id="char-con-mod">+1</div>
+                            </div>
+                            <div class="ability-box int">
+                                <div class="ability-score" id="char-int">10</div>
+                                <div class="ability-name">INT</div>
+                                <div class="ability-mod" id="char-int-mod">+0</div>
+                            </div>
+                            <div class="ability-box wis">
+                                <div class="ability-score" id="char-wis">12</div>
+                                <div class="ability-name">WIS</div>
+                                <div class="ability-mod" id="char-wis-mod">+0</div>
+                            </div>
+                            <div class="ability-box cha">
+                                <div class="ability-score" id="char-cha">11</div>
+                                <div class="ability-name">CHA</div>
+                                <div class="ability-mod" id="char-cha-mod">+0</div>
+                            </div>
+                        </div>
+
+                        <div class="char-combat-stats">
+                            <div class="saving-throws">
+                                <div class="section-title">Saving Throws</div>
+                                <div class="save">
+                                    <span class="save-name">Death/Poison:</span>
+                                    <span id="save-death" class="save-value">12</span>
+                                </div>
+                                <div class="save">
+                                    <span class="save-name">Magic Wands:</span>
+                                    <span id="save-wands" class="save-value">13</span>
+                                </div>
+                                <div class="save">
+                                    <span class="save-name">Paralysis/Petrify:</span>
+                                    <span id="save-paralysis" class="save-value">14</span>
+                                </div>
+                                <div class="save">
+                                    <span class="save-name">Dragon Breath:</span>
+                                    <span id="save-breath" class="save-value">15</span>
+                                </div>
+                                <div class="save">
+                                    <span class="save-name">Spells:</span>
+                                    <span id="save-spells" class="save-value">16</span>
+                                </div>
+                            </div>
+
+                            <div class="combat-info">
+                                <div class="combat-stat">
+                                    <span class="stat-name">Attack Bonus:</span>
+                                    <span id="attack-bonus" class="stat-value">+1</span>
+                                </div>
+                                <div class="combat-stat">
+                                    <span class="stat-name">Initiative:</span>
+                                    <span id="initiative-mod" class="stat-value">+1</span>
+                                </div>
+                                <div class="combat-stat hp">
+                                    <span class="stat-name">HP:</span>
+                                    <span id="char-hp-detail" class="stat-value">10/10</span>
+                                </div>
+                                <div class="combat-stat">
+                                    <span class="stat-name">AC:</span>
+                                    <span id="armor-class" class="stat-value">14</span>
+                                </div>
+                                <div class="combat-stat">
+                                    <span class="stat-name">Move:</span>
+                                    <span id="movement" class="stat-value">40'</span>
+                                </div>
+                                <div class="combat-stat">
+                                    <span class="stat-name">XP:</span>
+                                    <span id="experience" class="stat-value">0/2000</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Class Specific Section -->
+                    <div class="class-specific-section">
+                        <div class="section-title">Class Features</div>
+                        <div id="class-features" class="section-content">
+                            <!-- Will be populated based on character class -->
+                        </div>
+                    </div>
+
+                    <!-- Equipment Section -->
+                    <div class="equipment-section">
+                        <div class="section-title">Equipment</div>
+                        <ul class="stats-list" id="equipment-list">
+                            <li>Sword</li>
+                            <li>Shield</li>
+                            <li>Leather Armor</li>
+                        </ul>
+                    </div>
+
+                    <!-- Weapons Section -->
+                    <div class="weapons-section">
+                        <div class="section-title">Weapons</div>
+                        <table id="weapons-table">
+                            <thead>
+                                <tr>
+                                    <th>Weapon</th>
+                                    <th>Attack</th>
+                                    <th>Damage</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="weapons-list">
+                                <!-- Will be dynamically populated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Journal Section -->
+            <div class="journal-section">
+                <div class="journal-title">Journal</div>
+                <div id="journal-content" class="journal-content">No journal entries yet.</div>
+                <div class="journal-input-container">
+                    <input type="text" id="journal-input" placeholder="Add journal entry..." autocomplete="off">
+                </div>
+            </div>
         </div>
     </div>
 
     <script src="js/game.js"></script>
+    <script>
+        // Add character selection functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const showCharactersBtn = document.getElementById('show-characters-btn');
+            const characterModal = document.getElementById('character-selection-modal');
+            const closeModalBtn = document.querySelector('.close-modal-btn');
+
+            // Close modal function - forcefully close and ensure it stays closed
+            function closeCharacterModal() {
+                // Remove active class and set display to none
+                characterModal.classList.remove('active');
+                characterModal.style.display = 'none';
+                console.log("Modal manually closed by user");
+
+                // Focus command input
+                const commandInput = document.getElementById('command-input');
+                if (commandInput) {
+                    setTimeout(() => {
+                        commandInput.focus();
+                    }, 100);
+                }
+            }
+
+            // Add event listener for the background click
+            characterModal.addEventListener('click', function(event) {
+                if (event.target === characterModal) {
+                    closeCharacterModal();
+                }
+            });
+
+            // Add event listener for the close button
+            if (closeModalBtn) {
+                closeModalBtn.addEventListener('click', function(event) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    closeCharacterModal();
+                });
+            }
+
+            // Add event listener for the show characters button
+            if (showCharactersBtn) {
+                showCharactersBtn.addEventListener('click', function() {
+                    if (characterModal) {
+                        characterModal.classList.add('active');
+                        characterModal.style.display = 'block';
+
+                        // Load characters via API
+                        fetch('/api/characters', {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${localStorage.getItem('token')}`
+                            }
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error! status: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(characters => {
+                            const charList = document.getElementById('character-list');
+                            if (charList) {
+                                charList.innerHTML = '';
+
+                                if (characters.length === 0) {
+                                    charList.innerHTML = `
+                                        <div class="loading-message">
+                                            No characters found. Click "Create New Character" to get started.
+                                        </div>
+                                    `;
+                                } else {
+                                    characters.forEach(character => {
+                                        const card = document.createElement('div');
+                                        card.classList.add('character-card');
+
+                                        card.innerHTML = `
+                                            <h3>${character.name}</h3>
+                                            <div class="character-info">
+                                                <div class="character-info-left">
+                                                    <div class="character-stat">Race: ${character.race || 'Unknown'}</div>
+                                                    <div class="character-stat">Class: ${character.character_class || 'Unknown'}</div>
+                                                    <div class="character-stat">Level: ${character.level || 1}</div>
+                                                </div>
+                                            </div>
+                                            <div class="character-card-actions">
+                                                <button class="btn select-char-btn" data-id="${character.id}">Select Character</button>
+                                            </div>
+                                        `;
+
+                                        charList.appendChild(card);
+                                    });
+
+                                    // Add event listeners to the select buttons
+                                    document.querySelectorAll('.select-char-btn').forEach(btn => {
+                                        btn.addEventListener('click', function(event) {
+                                            // Prevent default behavior
+                                            event.preventDefault();
+                                            event.stopPropagation();
+
+                                            const charId = this.getAttribute('data-id');
+                                            if (!charId) {
+                                                console.error("No character ID found");
+                                                return;
+                                            }
+
+                                            console.log("Selected character ID:", charId);
+
+                                            // Save to local storage immediately
+                                            localStorage.setItem('characterId', charId);
+
+                                            // Hide modal
+                                            closeCharacterModal();
+
+                                            // Use the existing selectCharacter function if available
+                                            if (window.selectCharacter) {
+                                                window.selectCharacter(charId);
+                                            } else {
+                                                // Create an HTML form and submit it to force a clean page reload
+                                                const form = document.createElement('form');
+                                                form.method = 'GET';
+                                                form.action = 'game.html';
+
+                                                // Add character ID as a hidden field
+                                                const input = document.createElement('input');
+                                                input.type = 'hidden';
+                                                input.name = 'char';
+                                                input.value = charId;
+                                                form.appendChild(input);
+
+                                                // Add to document, submit, then remove
+                                                document.body.appendChild(form);
+                                                form.submit();
+                                            }
+                                        });
+                                    });
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error loading characters:', error);
+                            charList.innerHTML = `
+                                <div class="loading-message error-message">
+                                    Error loading characters. Please try again.
+                                </div>
+                            `;
+                        });
+                    }
+                });
+            }
+
+            // Handle character creation button
+            const createCharBtn = document.getElementById('create-character-btn');
+            if (createCharBtn) {
+                createCharBtn.addEventListener('click', function(event) {
+                    // Prevent default behavior
+                    event.preventDefault();
+
+                    // Hide the modal
+                    closeCharacterModal();
+
+                    // Clear any existing character ID
+                    localStorage.removeItem('characterId');
+
+                    // Add a create character message directly to the output
+                    const gameOutput = document.getElementById('game-output');
+                    if (gameOutput) {
+                        const cmdDiv = document.createElement('div');
+                        cmdDiv.innerHTML = '<span style="color: #ff5;">> create character New Character</span>';
+                        gameOutput.appendChild(cmdDiv);
+                        gameOutput.scrollTop = gameOutput.scrollHeight;
+                    }
+
+                    // Simply submit the create character command once using fetch
+                    const token = localStorage.getItem('token');
+                    fetch('/api/commands', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            command: 'create character New Character'
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("API response:", data);
+                        if (data.message) {
+                            // Add the response message to the terminal
+                            const msgDiv = document.createElement('div');
+                            msgDiv.textContent = data.message;
+                            gameOutput.appendChild(msgDiv);
+                            gameOutput.scrollTop = gameOutput.scrollHeight;
+                        }
+
+                        // Focus the command input for next input
+                        const commandInput = document.getElementById('command-input');
+                        if (commandInput) {
+                            commandInput.focus();
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Error creating character:", error);
+                        // Show error message
+                        if (gameOutput) {
+                            const errDiv = document.createElement('div');
+                            errDiv.innerHTML = '<span style="color: #f55;">[ERROR]: Failed to create character</span>';
+                            gameOutput.appendChild(errDiv);
+                            gameOutput.scrollTop = gameOutput.scrollHeight;
+                        }
+                    });
+                });
+            }
+
+            // Add journal entry functionality
+            const journalInput = document.getElementById('journal-input');
+            if (journalInput) {
+                journalInput.addEventListener('keydown', function(event) {
+                    if (event.key === 'Enter' && this.value.trim() !== '') {
+                        const journalContent = document.getElementById('journal-content');
+                        if (journalContent) {
+                            const date = new Date();
+                            const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+
+                            const entry = document.createElement('div');
+                            entry.classList.add('journal-entry');
+                            entry.innerHTML = `
+                                <div class="entry-date">${formattedDate}</div>
+                                <div class="entry-text">${this.value}</div>
+                            `;
+
+                            if (journalContent.innerText === 'No journal entries yet.') {
+                                journalContent.innerHTML = '';
+                            }
+
+                            journalContent.appendChild(entry);
+                            journalContent.scrollTop = journalContent.scrollHeight;
+                            this.value = '';
+                        }
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
