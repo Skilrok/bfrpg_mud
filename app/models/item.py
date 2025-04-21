@@ -21,6 +21,7 @@ class ItemType(str, enum.Enum):
     CONTAINER = "container"
     CLOTHING = "clothing"
     FOOD = "food"
+    AMMUNITION = "ammunition"  # Added for arrows, bolts, etc.
     MISCELLANEOUS = "miscellaneous"
 
 
