@@ -1,13 +1,24 @@
-from typing import List, Dict, Any, Optional, Tuple
 import logging
 import random
+from typing import Any, Dict, List, Optional, Tuple
+
 from sqlalchemy.orm import Session
 
-from app.commands.base import CommandHandler, CommandContext, CommandResponse, CommandCategory, CommandRequirement
+from app.commands.base import (
+    CommandCategory,
+    CommandContext,
+    CommandHandler,
+    CommandRequirement,
+    CommandResponse,
+)
 from app.commands.registry import command_registry
-from app.models import Character, CharacterRace, CharacterClass, CharacterLocation
+from app.models import Character, CharacterClass, CharacterLocation, CharacterRace
+from app.routers.characters import (
+    add_starting_equipment,
+    calculate_racial_abilities,
+    calculate_saving_throws,
+)
 from app.schemas.character import CharacterCreate
-from app.routers.characters import calculate_saving_throws, calculate_racial_abilities, add_starting_equipment
 
 logger = logging.getLogger(__name__)
 
@@ -15,37 +26,35 @@ logger = logging.getLogger(__name__)
 # Key: user_id, Value: dict containing creation state data
 creation_state_store: Dict[int, Dict[str, Any]] = {}
 
+
 def get_valid_classes_for_race(race: CharacterRace) -> List[CharacterClass]:
     """Return a list of valid character classes for the given race."""
     race_to_classes = {
         CharacterRace.HUMAN: [
-            CharacterClass.FIGHTER, 
-            CharacterClass.CLERIC, 
-            CharacterClass.MAGIC_USER, 
-            CharacterClass.THIEF
+            CharacterClass.FIGHTER,
+            CharacterClass.CLERIC,
+            CharacterClass.MAGIC_USER,
+            CharacterClass.THIEF,
         ],
         CharacterRace.DWARF: [
-            CharacterClass.FIGHTER, 
-            CharacterClass.CLERIC, 
-            CharacterClass.THIEF
+            CharacterClass.FIGHTER,
+            CharacterClass.CLERIC,
+            CharacterClass.THIEF,
         ],
-        CharacterRace.ELF: [
-            CharacterClass.FIGHTER_MAGIC_USER
-        ],
-        CharacterRace.HALFLING: [
-            CharacterClass.FIGHTER, 
-            CharacterClass.THIEF
-        ]
+        CharacterRace.ELF: [CharacterClass.FIGHTER_MAGIC_USER],
+        CharacterRace.HALFLING: [CharacterClass.FIGHTER, CharacterClass.THIEF],
     }
     return race_to_classes.get(race, [])
 
+
 class CreateCharacterCommand(CommandHandler):
     """Handler for the create character command"""
+
     name = "create"
     aliases = ["new"]
     help_text = "Create a new character. Usage: create character <n>"
     category = CommandCategory.BASIC
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # Get DB session
         db = ctx.data.get("db")
@@ -53,39 +62,40 @@ class CreateCharacterCommand(CommandHandler):
             return CommandResponse(
                 success=False,
                 message="Database session not available.",
-                errors=["No database session"]
+                errors=["No database session"],
             )
-            
+
         # Need at least 2 args: "character" and a name
         if len(ctx.args) < 2 or ctx.args[0].lower() != "character":
             return CommandResponse(
                 success=False,
                 message="Usage: create character <n>",
-                errors=["Invalid syntax"]
+                errors=["Invalid syntax"],
             )
-            
+
         # Extract character name from args (may contain spaces)
         char_name = " ".join(ctx.args[1:])
-        
+
         # Check if user already has a character with this name
-        existing_char = db.query(Character).filter(
-            Character.user_id == ctx.user.id,
-            Character.name.ilike(char_name)
-        ).first()
-        
+        existing_char = (
+            db.query(Character)
+            .filter(Character.user_id == ctx.user.id, Character.name.ilike(char_name))
+            .first()
+        )
+
         if existing_char:
             return CommandResponse(
                 success=False,
                 message=f"You already have a character named '{char_name}'.",
-                errors=["Duplicate character name"]
+                errors=["Duplicate character name"],
             )
-            
+
         # Initialize character creation state
         creation_state_store[ctx.user.id] = {
             "creation_state": "race_selection",
-            "name": char_name
+            "name": char_name,
         }
-            
+
         # Guide user through character creation
         return CommandResponse(
             success=True,
@@ -95,58 +105,61 @@ class CreateCharacterCommand(CommandHandler):
                 f"'race <race>'\n\n"
                 f"Available races: human, dwarf, elf, halfling"
             ),
-            data={
-                "creation_state": "race_selection",
-                "name": char_name
-            }
+            data={"creation_state": "race_selection", "name": char_name},
         )
+
 
 class RaceCommand(CommandHandler):
     """Handler for selecting a character's race during creation"""
+
     name = "race"
     help_text = "Select a race for your new character. Usage: race <race_name>"
     category = CommandCategory.BASIC
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # Check if a race was specified
         if not ctx.args:
             return CommandResponse(
                 success=False,
                 message="Please specify a race. Available races: human, dwarf, elf, halfling",
-                errors=["No race specified"]
+                errors=["No race specified"],
             )
-            
+
         # Check if we have a creation state
-        if ctx.user.id not in creation_state_store or creation_state_store[ctx.user.id].get("creation_state") != "race_selection":
+        if (
+            ctx.user.id not in creation_state_store
+            or creation_state_store[ctx.user.id].get("creation_state")
+            != "race_selection"
+        ):
             return CommandResponse(
                 success=False,
                 message="You need to start character creation first with 'create character <name>'",
-                errors=["No active character creation"]
+                errors=["No active character creation"],
             )
-            
+
         race_input = ctx.args[0].lower()
-        
+
         # Map race input to CharacterRace enum
         race_map = {
             "human": CharacterRace.HUMAN,
             "dwarf": CharacterRace.DWARF,
             "elf": CharacterRace.ELF,
-            "halfling": CharacterRace.HALFLING
+            "halfling": CharacterRace.HALFLING,
         }
-        
+
         if race_input not in race_map:
             return CommandResponse(
                 success=False,
                 message=f"'{race_input}' is not a valid race. Available races: human, dwarf, elf, halfling",
-                errors=["Invalid race"]
+                errors=["Invalid race"],
             )
-            
+
         selected_race = race_map[race_input]
-        
+
         # Update state
         creation_state_store[ctx.user.id]["creation_state"] = "class_selection"
         creation_state_store[ctx.user.id]["race"] = selected_race.value
-        
+
         # Return response with class selection prompt
         classes_msg = (
             "human: fighter, cleric, magic-user, thief\n"
@@ -154,7 +167,7 @@ class RaceCommand(CommandHandler):
             "elf: fighter/magic-user\n"
             "halfling: fighter, thief"
         )
-        
+
         return CommandResponse(
             success=True,
             message=(
@@ -163,60 +176,63 @@ class RaceCommand(CommandHandler):
                 f"'class <class>'\n\n"
                 f"Available classes based on your race:\n{classes_msg}"
             ),
-            data={
-                "creation_state": "class_selection",
-                "race": selected_race.value
-            }
+            data={"creation_state": "class_selection", "race": selected_race.value},
         )
+
 
 class ClassCommand(CommandHandler):
     """Handler for selecting a character's class during creation"""
+
     name = "class"
     help_text = "Select a class for your new character. Usage: class <class_name>"
     category = CommandCategory.BASIC
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # Check if a class was specified
         if not ctx.args:
             return CommandResponse(
                 success=False,
                 message="Please specify a class",
-                errors=["No class specified"]
+                errors=["No class specified"],
             )
-            
+
         # Check if we have a creation state for class selection
-        if ctx.user.id not in creation_state_store or creation_state_store[ctx.user.id].get("creation_state") != "class_selection":
+        if (
+            ctx.user.id not in creation_state_store
+            or creation_state_store[ctx.user.id].get("creation_state")
+            != "class_selection"
+        ):
             return CommandResponse(
                 success=False,
                 message="You need to select a race first using the 'race' command",
-                errors=["Race not selected"]
+                errors=["Race not selected"],
             )
-            
+
         class_input = ctx.args[0].lower()
         race_value = creation_state_store[ctx.user.id].get("race")
         race = CharacterRace(race_value)
-        
+
         # Validate class based on race
         valid_classes = get_valid_classes_for_race(race)
         selected_class = None
-        
+
         for valid_class in valid_classes:
             if valid_class.value.lower() == class_input:
                 selected_class = valid_class
                 break
-                
+
         if not selected_class:
             valid_class_names = [c.value.lower() for c in valid_classes]
             return CommandResponse(
                 success=False,
                 message=f"'{class_input}' is not a valid class for {race.value}. Valid classes: {', '.join(valid_class_names)}",
-                errors=["Invalid class for race"]
+                errors=["Invalid class for race"],
             )
-            
+
         # Store the selected class in state
         creation_state_store[ctx.user.id]["class"] = selected_class.value
         creation_state_store[ctx.user.id]["creation_state"] = "stats_selection"
-        
+
         return CommandResponse(
             success=True,
             message=(
@@ -229,151 +245,291 @@ class ClassCommand(CommandHandler):
                 "creation_state": "stats_selection",
                 "race": race.value,
                 "class": selected_class.value,
-                "name": creation_state_store[ctx.user.id].get("name")
-            }
+                "name": creation_state_store[ctx.user.id].get("name"),
+            },
         )
+
 
 class RollStatsCommand(CommandHandler):
     """Handler for rolling ability scores during character creation"""
+
     name = "roll"
     aliases = ["roll-stats"]
     help_text = "Roll ability scores for your new character. Usage: roll stats"
     category = CommandCategory.BASIC
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
-        # Check if creation state is set correctly
-        if not ctx.data.get("creation_state") or ctx.data.get("creation_state") != "stats_selection":
+        # Check both context data and the state store
+        user_id = ctx.user.id
+        creation_state = ctx.data.get("creation_state")
+        stored_state = creation_state_store.get(user_id, {}).get("creation_state")
+
+        # Log the states for debugging
+        logger.info(
+            f"RollStatsCommand: ctx state: {creation_state}, stored state: {stored_state}"
+        )
+
+        # Check if creation state is set correctly (either in context or in store)
+        if not (
+            (creation_state == "stats_selection" or stored_state == "stats_selection")
+        ):
             return CommandResponse(
                 success=False,
                 message="You need to select a class first using the 'class' command.",
-                errors=["Invalid creation state"]
+                errors=["Invalid creation state"],
             )
-            
+
         # Check if command is "roll stats"
         if len(ctx.args) != 1 or ctx.args[0].lower() != "stats":
             return CommandResponse(
-                success=False,
-                message="Usage: roll stats",
-                errors=["Invalid syntax"]
+                success=False, message="Usage: roll stats", errors=["Invalid syntax"]
             )
-            
-        # Roll 3d6 for each ability score
-        scores = {}
-        ability_names = ["strength", "intelligence", "wisdom", "dexterity", "constitution", "charisma"]
-        for ability in ability_names:
-            scores[ability] = sum(random.randint(1, 6) for _ in range(3))
-            
-        # Check if the scores meet the class requirements
-        valid_scores, error_msg = self._validate_scores(scores, CharacterClass(ctx.data.get("class")))
-        
-        if not valid_scores:
+
+        try:
+            # Roll 3d6 for each ability score
+            scores = {}
+            ability_names = [
+                "strength",
+                "intelligence",
+                "wisdom",
+                "dexterity",
+                "constitution",
+                "charisma",
+            ]
+            for ability in ability_names:
+                scores[ability] = sum(random.randint(1, 6) for _ in range(3))
+
+            # Get character class from context or stored state
+            char_class = ctx.data.get("class") or creation_state_store.get(
+                user_id, {}
+            ).get("class")
+            if not char_class:
+                return CommandResponse(
+                    success=False,
+                    message="Character class information is missing. Please restart character creation.",
+                    errors=["Missing class information"],
+                )
+
+            # Check if the scores meet the class requirements
+            valid_scores, error_msg = self._validate_scores(
+                scores, CharacterClass(char_class)
+            )
+
+            if not valid_scores:
+                return CommandResponse(
+                    success=False,
+                    message=(
+                        f"Rolled scores do not meet requirements for {char_class}.\n"
+                        f"{error_msg}\n\n"
+                        f"Please try again with 'roll stats' or use 'standard stats'."
+                    ),
+                    errors=["Insufficient ability scores"],
+                )
+
+            # Display the scores to the user
+            scores_display = "\n".join(
+                [
+                    f"{ability.capitalize()}: {score}"
+                    for ability, score in scores.items()
+                ]
+            )
+
+            # Make sure the creation state is stored properly
+            if user_id not in creation_state_store:
+                creation_state_store[user_id] = {}
+
+            # Get race and name from context or stored state
+            race = ctx.data.get("race") or creation_state_store.get(user_id, {}).get(
+                "race"
+            )
+            name = ctx.data.get("name") or creation_state_store.get(user_id, {}).get(
+                "name"
+            )
+
+            creation_state_store[user_id].update(
+                {
+                    "creation_state": "confirm",
+                    "race": race,
+                    "class": char_class,
+                    "name": name,
+                    "ability_scores": scores,
+                }
+            )
+
+            # Log the updated creation state for debugging
+            logger.info(
+                f"Updated creation state for user {user_id}: {creation_state_store[user_id]}"
+            )
+
+            return CommandResponse(
+                success=True,
+                message=(
+                    f"Your ability scores have been rolled:\n\n"
+                    f"{scores_display}\n\n"
+                    f"To complete character creation, type 'confirm' to use these scores "
+                    f"or 'roll stats' to try again."
+                ),
+                data={
+                    "creation_state": "confirm",
+                    "race": race,
+                    "class": char_class,
+                    "name": name,
+                    "ability_scores": scores,
+                },
+            )
+        except Exception as e:
+            logger.exception(f"Error in RollStatsCommand: {str(e)}")
             return CommandResponse(
                 success=False,
-                message=(
-                    f"Rolled scores do not meet requirements for {ctx.data.get('class')}.\n"
-                    f"{error_msg}\n\n"
-                    f"Please try again with 'roll stats' or use 'standard stats'."
-                ),
-                errors=["Insufficient ability scores"]
+                message=f"An error occurred while rolling stats: {str(e)}",
+                errors=[str(e)],
             )
-        
-        # Display the scores to the user
-        scores_display = "\n".join([f"{ability.capitalize()}: {score}" for ability, score in scores.items()])
-        
-        return CommandResponse(
-            success=True,
-            message=(
-                f"Your ability scores have been rolled:\n\n"
-                f"{scores_display}\n\n"
-                f"To complete character creation, type 'confirm' to use these scores "
-                f"or 'roll stats' to try again."
-            ),
-            data={
-                "creation_state": "confirm",
-                "race": ctx.data.get("race"),
-                "class": ctx.data.get("class"),
-                "name": ctx.data.get("name"),
-                "ability_scores": scores
-            }
-        )
-        
-    def _validate_scores(self, scores: Dict[str, int], char_class: CharacterClass) -> Tuple[bool, str]:
+
+    def _validate_scores(
+        self, scores: Dict[str, int], char_class: CharacterClass
+    ) -> Tuple[bool, str]:
         """Validate if ability scores meet class requirements"""
         # Check prime requisite requirements
         if char_class == CharacterClass.FIGHTER and scores["strength"] < 9:
             return False, "Fighters must have at least 9 Strength."
-            
+
         if char_class == CharacterClass.MAGIC_USER and scores["intelligence"] < 9:
             return False, "Magic-Users must have at least 9 Intelligence."
-            
+
         if char_class == CharacterClass.CLERIC and scores["wisdom"] < 9:
             return False, "Clerics must have at least 9 Wisdom."
-            
+
         if char_class == CharacterClass.THIEF and scores["dexterity"] < 9:
             return False, "Thieves must have at least 9 Dexterity."
-            
+
         if char_class == CharacterClass.FIGHTER_MAGIC_USER:
             if scores["strength"] < 9:
                 return False, "Fighter/Magic-Users must have at least 9 Strength."
             if scores["intelligence"] < 9:
                 return False, "Fighter/Magic-Users must have at least 9 Intelligence."
-            
+
         if char_class == CharacterClass.MAGIC_USER_THIEF:
             if scores["intelligence"] < 9:
                 return False, "Magic-User/Thieves must have at least 9 Intelligence."
             if scores["dexterity"] < 9:
                 return False, "Magic-User/Thieves must have at least 9 Dexterity."
-            
+
         return True, ""
+
 
 class StandardStatsCommand(CommandHandler):
     """Handler for using standard ability scores during character creation"""
+
     name = "standard"
     aliases = ["standard-stats"]
-    help_text = "Use standard ability scores for your new character. Usage: standard stats"
+    help_text = (
+        "Use standard ability scores for your new character. Usage: standard stats"
+    )
     category = CommandCategory.BASIC
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
-        # Check if creation state is set correctly
-        if not ctx.data.get("creation_state") or ctx.data.get("creation_state") != "stats_selection":
+        # Check both context data and the state store
+        user_id = ctx.user.id
+        creation_state = ctx.data.get("creation_state")
+        stored_state = creation_state_store.get(user_id, {}).get("creation_state")
+
+        # Log the states for debugging
+        logger.info(
+            f"StandardStatsCommand: ctx state: {creation_state}, stored state: {stored_state}"
+        )
+
+        # Check if creation state is set correctly (either in context or in store)
+        if not (
+            (creation_state == "stats_selection" or stored_state == "stats_selection")
+        ):
             return CommandResponse(
                 success=False,
                 message="You need to select a class first using the 'class' command.",
-                errors=["Invalid creation state"]
+                errors=["Invalid creation state"],
             )
-            
+
         # Check if command is "standard stats"
         if len(ctx.args) != 1 or ctx.args[0].lower() != "stats":
             return CommandResponse(
                 success=False,
                 message="Usage: standard stats",
-                errors=["Invalid syntax"]
+                errors=["Invalid syntax"],
             )
-            
-        # Generate standard scores based on class
-        char_class = CharacterClass(ctx.data.get("class"))
-        scores = self._get_standard_scores(char_class)
-        
-        # Display the scores to the user
-        scores_display = "\n".join([f"{ability.capitalize()}: {score}" for ability, score in scores.items()])
-        
-        return CommandResponse(
-            success=True,
-            message=(
-                f"Standard ability scores for {char_class.value}:\n\n"
-                f"{scores_display}\n\n"
-                f"To complete character creation, type 'confirm' to use these scores "
-                f"or try 'roll stats' for random scores."
-            ),
-            data={
-                "creation_state": "confirm",
-                "race": ctx.data.get("race"),
-                "class": ctx.data.get("class"),
-                "name": ctx.data.get("name"),
-                "ability_scores": scores
-            }
-        )
-        
+
+        try:
+            # Get character class from context or stored state
+            char_class = ctx.data.get("class") or creation_state_store.get(
+                user_id, {}
+            ).get("class")
+            if not char_class:
+                return CommandResponse(
+                    success=False,
+                    message="Character class information is missing. Please restart character creation.",
+                    errors=["Missing class information"],
+                )
+
+            # Generate standard scores based on class
+            scores = self._get_standard_scores(CharacterClass(char_class))
+
+            # Get race and name from context or stored state
+            race = ctx.data.get("race") or creation_state_store.get(user_id, {}).get(
+                "race"
+            )
+            name = ctx.data.get("name") or creation_state_store.get(user_id, {}).get(
+                "name"
+            )
+
+            # Store the creation state
+            if user_id not in creation_state_store:
+                creation_state_store[user_id] = {}
+
+            creation_state_store[user_id].update(
+                {
+                    "creation_state": "confirm",
+                    "race": race,
+                    "class": char_class,
+                    "name": name,
+                    "ability_scores": scores,
+                }
+            )
+
+            # Log the updated creation state for debugging
+            logger.info(
+                f"Updated creation state for user {user_id}: {creation_state_store[user_id]}"
+            )
+
+            # Display the scores to the user
+            scores_display = "\n".join(
+                [
+                    f"{ability.capitalize()}: {score}"
+                    for ability, score in scores.items()
+                ]
+            )
+
+            return CommandResponse(
+                success=True,
+                message=(
+                    f"Standard ability scores for {char_class}:\n\n"
+                    f"{scores_display}\n\n"
+                    f"To complete character creation, type 'confirm' to use these scores "
+                    f"or try 'roll stats' for random scores."
+                ),
+                data={
+                    "creation_state": "confirm",
+                    "race": race,
+                    "class": char_class,
+                    "name": name,
+                    "ability_scores": scores,
+                },
+            )
+        except Exception as e:
+            logger.exception(f"Error in StandardStatsCommand: {str(e)}")
+            return CommandResponse(
+                success=False,
+                message=f"An error occurred while generating standard stats: {str(e)}",
+                errors=[str(e)],
+            )
+
     def _get_standard_scores(self, char_class: CharacterClass) -> Dict[str, int]:
         """Get standard ability scores based on character class"""
         # Base scores that every class gets
@@ -383,9 +539,9 @@ class StandardStatsCommand(CommandHandler):
             "wisdom": 10,
             "dexterity": 10,
             "constitution": 10,
-            "charisma": 10
+            "charisma": 10,
         }
-        
+
         # Adjust based on class prime requisites
         if char_class == CharacterClass.FIGHTER:
             scores["strength"] = 14
@@ -406,15 +562,17 @@ class StandardStatsCommand(CommandHandler):
         elif char_class == CharacterClass.MAGIC_USER_THIEF:
             scores["intelligence"] = 13
             scores["dexterity"] = 13
-            
+
         return scores
+
 
 class ConfirmCharacterCommand(CommandHandler):
     """Handler for confirming character creation"""
+
     name = "confirm"
     help_text = "Confirm and complete character creation."
     category = CommandCategory.BASIC
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # Get DB session
         db = ctx.data.get("db")
@@ -422,30 +580,67 @@ class ConfirmCharacterCommand(CommandHandler):
             return CommandResponse(
                 success=False,
                 message="Database session not available.",
-                errors=["No database session"]
+                errors=["No database session"],
             )
-            
-        # Check if creation state is set correctly
-        if not ctx.data.get("creation_state") or ctx.data.get("creation_state") != "confirm":
+
+        # Check both context data and the state store
+        user_id = ctx.user.id
+        creation_state = ctx.data.get("creation_state")
+        stored_state = creation_state_store.get(user_id, {}).get("creation_state")
+
+        # Log the states for debugging
+        logger.info(
+            f"ConfirmCharacterCommand: ctx state: {creation_state}, stored state: {stored_state}"
+        )
+
+        # Check if creation state is set correctly (either in context or in store)
+        if not (creation_state == "confirm" or stored_state == "confirm"):
             return CommandResponse(
                 success=False,
-                message="Character creation is not ready to be confirmed.",
-                errors=["Invalid creation state"]
+                message=(
+                    "Character creation is not ready to be confirmed. "
+                    "Please complete all previous steps (race, class, and stats selection)."
+                ),
+                errors=["Invalid creation state"],
             )
-            
-        # Get character data from context
-        name = ctx.data.get("name")
-        race = ctx.data.get("race")
-        char_class = ctx.data.get("class")
-        ability_scores = ctx.data.get("ability_scores")
-        
+
+        # Try to get character data from both context and state store
+        name = ctx.data.get("name") or creation_state_store.get(user_id, {}).get("name")
+        race = ctx.data.get("race") or creation_state_store.get(user_id, {}).get("race")
+        char_class = ctx.data.get("class") or creation_state_store.get(user_id, {}).get(
+            "class"
+        )
+        ability_scores = ctx.data.get("ability_scores") or creation_state_store.get(
+            user_id, {}
+        ).get("ability_scores")
+
+        # Log the retrieved data for debugging
+        logger.info(
+            f"Retrieved character data: name={name}, race={race}, class={char_class}, scores={ability_scores}"
+        )
+
         if not all([name, race, char_class, ability_scores]):
             return CommandResponse(
                 success=False,
-                message="Character information is incomplete. Please restart character creation.",
-                errors=["Incomplete character data"]
+                message=(
+                    "Character information is incomplete. Please restart character creation.\n"
+                    "Missing: "
+                    + ", ".join(
+                        [
+                            k
+                            for k, v in {
+                                "name": name,
+                                "race": race,
+                                "class": char_class,
+                                "ability scores": ability_scores,
+                            }.items()
+                            if not v
+                        ]
+                    )
+                ),
+                errors=["Incomplete character data"],
             )
-            
+
         try:
             # Create CharacterCreate model
             character_data = CharacterCreate(
@@ -458,12 +653,19 @@ class ConfirmCharacterCommand(CommandHandler):
                 wisdom=ability_scores["wisdom"],
                 dexterity=ability_scores["dexterity"],
                 constitution=ability_scores["constitution"],
-                charisma=ability_scores["charisma"]
+                charisma=ability_scores["charisma"],
             )
-            
+
             # Calculate ability score modifiers
             ability_modifiers = {}
-            for ability in ["strength", "intelligence", "wisdom", "dexterity", "constitution", "charisma"]:
+            for ability in [
+                "strength",
+                "intelligence",
+                "wisdom",
+                "dexterity",
+                "constitution",
+                "charisma",
+            ]:
                 score = getattr(character_data, ability)
                 if score == 3:
                     ability_modifiers[ability] = -3
@@ -479,7 +681,7 @@ class ConfirmCharacterCommand(CommandHandler):
                     ability_modifiers[ability] = 2
                 elif score == 18:
                     ability_modifiers[ability] = 3
-            
+
             # Calculate starting hit points
             hp_dice = {
                 CharacterClass.FIGHTER: 8,
@@ -487,58 +689,73 @@ class ConfirmCharacterCommand(CommandHandler):
                 CharacterClass.MAGIC_USER: 4,
                 CharacterClass.THIEF: 4,
                 CharacterClass.FIGHTER_MAGIC_USER: 6,
-                CharacterClass.MAGIC_USER_THIEF: 4
+                CharacterClass.MAGIC_USER_THIEF: 4,
             }
-            
+
             # Get hit die for the class
             hit_die = hp_dice[CharacterClass(char_class)]
-            
+
             # Halflings and Elves never roll larger than d6 for hit points
-            if CharacterRace(race) in [CharacterRace.HALFLING, CharacterRace.ELF] and hit_die > 6:
+            if (
+                CharacterRace(race) in [CharacterRace.HALFLING, CharacterRace.ELF]
+                and hit_die > 6
+            ):
                 hit_die = 6
-                
+
             # Roll hit points and add CON modifier
             hit_points = random.randint(1, hit_die) + ability_modifiers["constitution"]
-            
+
             # Minimum of 1 hit point
             if hit_points < 1:
                 hit_points = 1
-            
+
             # Calculate starting gold (3d6 * 10)
             starting_gold = sum(random.randint(1, 6) for _ in range(3)) * 10
-            
+
             # Set up default equipment and inventory
             equipment = {}
             inventory = {}
-            
+
             # Calculate saving throws
-            saves = calculate_saving_throws(CharacterClass(char_class), 1, CharacterRace(race))
-            
+            saves = calculate_saving_throws(
+                CharacterClass(char_class), 1, CharacterRace(race)
+            )
+
             # Calculate racial abilities
             special_abilities = calculate_racial_abilities(CharacterRace(race))
-            
+
             # For magic users, generate starting spells
             spells_known = []
             if CharacterClass(char_class) in [
-                CharacterClass.MAGIC_USER, 
-                CharacterClass.FIGHTER_MAGIC_USER, 
-                CharacterClass.MAGIC_USER_THIEF
+                CharacterClass.MAGIC_USER,
+                CharacterClass.FIGHTER_MAGIC_USER,
+                CharacterClass.MAGIC_USER_THIEF,
             ]:
                 # All magic users start with read magic
                 spells_known.append("read magic")
-                
+
                 # And one additional random spell
                 first_level_spells = [
-                    "charm person", "detect magic", "floating disc", 
-                    "hold portal", "light", "magic missile", 
-                    "protection from evil", "read languages", 
-                    "shield", "sleep", "ventriloquism"
+                    "charm person",
+                    "detect magic",
+                    "floating disc",
+                    "hold portal",
+                    "light",
+                    "magic missile",
+                    "protection from evil",
+                    "read languages",
+                    "shield",
+                    "sleep",
+                    "ventriloquism",
                 ]
                 spells_known.append(random.choice(first_level_spells))
-            
+
             # Calculate thief abilities
             thief_abilities = {}
-            if CharacterClass(char_class) in [CharacterClass.THIEF, CharacterClass.MAGIC_USER_THIEF]:
+            if CharacterClass(char_class) in [
+                CharacterClass.THIEF,
+                CharacterClass.MAGIC_USER_THIEF,
+            ]:
                 thief_abilities = {
                     "open_locks": 25,
                     "remove_traps": 20,
@@ -546,9 +763,9 @@ class ConfirmCharacterCommand(CommandHandler):
                     "move_silently": 25,
                     "climb_walls": 80,
                     "hide": 10,
-                    "listen": 30
+                    "listen": 30,
                 }
-            
+
             # Calculate languages
             languages = ["Common"]
             if race != "human":
@@ -559,116 +776,139 @@ class ConfirmCharacterCommand(CommandHandler):
                     languages.append("Elvish")
                 elif race == "halfling":
                     languages.append("Halfling")
-            
+
             # Add bonus languages based on INT
             if ability_modifiers["intelligence"] > 0:
                 bonus_languages_count = ability_modifiers["intelligence"]
-                available_languages = ["Dwarvish", "Elvish", "Halfling", "Goblin", "Hobgoblin", "Gnoll", "Orc"]
-                
+                available_languages = [
+                    "Dwarvish",
+                    "Elvish",
+                    "Halfling",
+                    "Goblin",
+                    "Hobgoblin",
+                    "Gnoll",
+                    "Orc",
+                ]
+
                 # Remove languages already known
                 for lang in languages:
                     if lang in available_languages:
                         available_languages.remove(lang)
-                
+
                 # Add random bonus languages up to the INT modifier
                 for _ in range(min(bonus_languages_count, len(available_languages))):
                     bonus_lang = random.choice(available_languages)
                     languages.append(bonus_lang)
                     available_languages.remove(bonus_lang)
-            
+
             # Create the character DB model
-            logger.info(f"Creating character: {name} (Race: {race}, Class: {char_class})")
-            
-            db_character = Character(
-                name=name,
-                description=character_data.description,
-                race=CharacterRace(race),
-                character_class=CharacterClass(char_class),
-                strength=ability_scores["strength"],
-                intelligence=ability_scores["intelligence"],
-                wisdom=ability_scores["wisdom"],
-                dexterity=ability_scores["dexterity"],
-                constitution=ability_scores["constitution"],
-                charisma=ability_scores["charisma"],
-                hit_points=hit_points,
-                armor_class=10 + ability_modifiers["dexterity"],
-                gold=starting_gold,
-                equipment=equipment,
-                inventory=inventory,
-                languages=",".join(languages),
-                save_death_ray_poison=saves["death_ray_poison"],
-                save_magic_wands=saves["magic_wands"],
-                save_paralysis_petrify=saves["paralysis_petrify"],
-                save_dragon_breath=saves["dragon_breath"],
-                save_spells=saves["spells"],
-                special_abilities=special_abilities,
-                spells_known=spells_known,
-                thief_abilities=thief_abilities,
-                user_id=ctx.user.id
+            logger.info(
+                f"Creating character: {name} (Race: {race}, Class: {char_class})"
             )
-            
-            db.add(db_character)
-            db.commit()
-            db.refresh(db_character)
-            
-            # Add starting equipment
-            add_starting_equipment(db, db_character)
-            
-            # Refresh to get updated inventory
-            db.refresh(db_character)
-            
-            # Place character in the starting room (room_id=1)
-            self._place_in_starting_room(db, db_character.id)
-            
-            return CommandResponse(
-                success=True,
-                message=(
-                    f"Character created successfully!\n\n"
-                    f"Name: {db_character.name}\n"
-                    f"Race: {db_character.race.value}\n"
-                    f"Class: {db_character.character_class.value}\n"
-                    f"Hit Points: {db_character.hit_points}\n"
-                    f"Armor Class: {db_character.armor_class}\n"
-                    f"Gold: {db_character.gold}\n\n"
-                    f"Your adventure begins! Type 'look' to see your surroundings."
-                ),
-                data={"character_id": db_character.id}
-            )
-            
+
+            # Use a try-except block specifically for DB operations
+            try:
+                db_character = Character(
+                    name=name,
+                    description=character_data.description,
+                    race=CharacterRace(race),
+                    character_class=CharacterClass(char_class),
+                    strength=ability_scores["strength"],
+                    intelligence=ability_scores["intelligence"],
+                    wisdom=ability_scores["wisdom"],
+                    dexterity=ability_scores["dexterity"],
+                    constitution=ability_scores["constitution"],
+                    charisma=ability_scores["charisma"],
+                    hit_points=hit_points,
+                    armor_class=10 + ability_modifiers["dexterity"],
+                    gold=starting_gold,
+                    equipment=equipment,
+                    inventory=inventory,
+                    languages=",".join(languages),
+                    save_death_ray_poison=saves["death_ray_poison"],
+                    save_magic_wands=saves["magic_wands"],
+                    save_paralysis_petrify=saves["paralysis_petrify"],
+                    save_dragon_breath=saves["dragon_breath"],
+                    save_spells=saves["spells"],
+                    special_abilities=special_abilities,
+                    spells_known=spells_known,
+                    thief_abilities=thief_abilities,
+                    user_id=ctx.user.id,
+                )
+
+                db.add(db_character)
+                db.commit()
+                db.refresh(db_character)
+
+                # Add starting equipment
+                add_starting_equipment(db, db_character)
+
+                # Refresh to get updated inventory
+                db.refresh(db_character)
+
+                # Place character in the starting room (room_id=1)
+                self._place_in_starting_room(db, db_character.id)
+
+                # Clear the character creation state now that we're done
+                if user_id in creation_state_store:
+                    del creation_state_store[user_id]
+
+                return CommandResponse(
+                    success=True,
+                    message=(
+                        f"Character created successfully!\n\n"
+                        f"Name: {db_character.name}\n"
+                        f"Race: {db_character.race.value}\n"
+                        f"Class: {db_character.character_class.value}\n"
+                        f"Hit Points: {db_character.hit_points}\n"
+                        f"Armor Class: {db_character.armor_class}\n"
+                        f"Gold: {db_character.gold}\n\n"
+                        f"Your adventure begins! Type 'look' to see your surroundings."
+                    ),
+                    data={"character_id": db_character.id},
+                )
+            except Exception as db_error:
+                logger.exception(f"Database error creating character: {db_error}")
+                db.rollback()
+                return CommandResponse(
+                    success=False,
+                    message=f"Database error creating character: {str(db_error)}",
+                    errors=[str(db_error)],
+                )
+
         except Exception as e:
-            logger.exception(f"Error creating character: {e}")
-            db.rollback()
+            logger.exception(f"Error in character creation: {e}")
             return CommandResponse(
                 success=False,
                 message=f"Error creating character: {str(e)}",
-                errors=[str(e)]
+                errors=[str(e)],
             )
-    
+
     def _place_in_starting_room(self, db: Session, character_id: int) -> bool:
         """Place character in the starting room"""
         try:
             # Check if location already exists
-            existing_location = db.query(CharacterLocation).filter(
-                CharacterLocation.character_id == character_id
-            ).first()
-            
+            existing_location = (
+                db.query(CharacterLocation)
+                .filter(CharacterLocation.character_id == character_id)
+                .first()
+            )
+
             if existing_location:
                 existing_location.room_id = 1
                 db.commit()
             else:
                 # Create new location entry
-                location = CharacterLocation(
-                    character_id=character_id,
-                    room_id=1
-                )
+                location = CharacterLocation(character_id=character_id, room_id=1)
                 db.add(location)
                 db.commit()
-                
+
             return True
         except Exception as e:
             logger.exception(f"Error placing character in starting room: {e}")
             db.rollback()
             return False
+
 
 # Register all commands
 command_registry.register(CreateCharacterCommand)
@@ -676,4 +916,4 @@ command_registry.register(RaceCommand)
 command_registry.register(ClassCommand)
 command_registry.register(RollStatsCommand)
 command_registry.register(StandardStatsCommand)
-command_registry.register(ConfirmCharacterCommand) 
+command_registry.register(ConfirmCharacterCommand)
