@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Create new character button is now handled in the inline script in game.html
-    /* 
+    /*
     let createCharPending = false;
     createCharacterBtn.addEventListener('click', function() {
         // Prevent multiple clicks
@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Using character ID:", characterId);
             // Show loading message
             displayMessage("Loading character data...", "system");
-            
+
             // Try to load the character data
             loadCharacterData(characterId)
                 .then(success => {
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         // Clear invalid character ID
                         localStorage.removeItem('characterId');
                         characterId = null;
-                        
+
                         // Display friendly error message
                         displayMessage("[ERROR]: Error loading character data. Please try again.", "error");
                         displayMessage("Type 'characters' to open the character selection screen.", "system");
@@ -160,7 +160,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Clear invalid character ID
                     localStorage.removeItem('characterId');
                     characterId = null;
-                    
+
                     // Display friendly error message
                     displayMessage("[ERROR]: Error loading character data. Please try again.", "error");
                     displayMessage("Type 'characters' to open the character selection screen.", "system");
@@ -304,27 +304,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
-        
+
         // Attach event listeners to delete buttons
         document.querySelectorAll('.delete-char-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation(); // Prevent the card click from firing
                 const charId = btn.getAttribute('data-id');
                 const charName = btn.getAttribute('data-name');
-                
+
                 if (charId) {
                     // Show the confirmation modal
                     const confirmDeleteModal = document.getElementById('confirm-delete-modal');
                     const deleteConfirmationMessage = document.getElementById('delete-confirmation-message');
                     const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-                    
+
                     // Update the confirmation message
                     deleteConfirmationMessage.textContent = `Are you sure you want to delete ${charName}? This action cannot be undone.`;
-                    
+
                     // Set the character ID for the confirm button
                     confirmDeleteBtn.setAttribute('data-id', charId);
                     console.log("Set data-id on confirm button:", charId);
-                    
+
                     // Show the delete confirmation modal
                     confirmDeleteModal.classList.add('active');
                     confirmDeleteModal.style.display = 'block';
@@ -392,13 +392,13 @@ document.addEventListener('DOMContentLoaded', function() {
     async function deleteCharacter(id) {
         // Ensure id is treated as a string
         id = String(id);
-        
+
         console.log("Starting deleteCharacter function with ID:", id);
-        
+
         try {
             // Show a loading message
             displayMessage("Deleting character...", "system");
-            
+
             // Log the token (partial) to verify authentication
             if (token) {
                 console.log(`Using token: ${token.substring(0, 10)}...`);
@@ -406,11 +406,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log("No authentication token found!");
                 throw new Error("Authentication token missing");
             }
-            
+
             // Construct the API URL
             const apiUrl = `/api/characters/${id}`;
             console.log(`Sending DELETE request to ${apiUrl}`);
-            
+
             // Send DELETE request to the API
             const response = await fetch(apiUrl, {
                 method: 'DELETE',
@@ -421,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
 
             console.log("Delete response status:", response.status);
-            
+
             try {
                 // Try to parse response as JSON
                 const responseData = await response.clone().json();
@@ -445,14 +445,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(chars => {
                     characters = chars;
                     renderCharacterList();
-                    
+
                     // If the deleted character was the currently selected one, clear the selection
                     if (id === characterId) {
                         console.log("Deleted the currently selected character, clearing selection");
                         localStorage.removeItem('characterId');
                         characterId = null;
                         selectedCharacterId = null;
-                        
+
                         // Clear the UI
                         updateCharacterInfo({
                             name: "No Character Selected",
@@ -472,7 +472,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             equipment: []
                         });
                     }
-                    
+
                     displayMessage("Character deleted successfully.", "system");
                 });
         } catch (error) {
@@ -515,14 +515,17 @@ document.addEventListener('DOMContentLoaded', function() {
         // If partyMembers element doesn't exist, return
         if (!partyMembers) return;
 
+        // Get the character name from the character sheet, not using the same ID reference
+        const characterName = document.getElementById('char-name').textContent;
+
         // Keep the main character at the top
         // Other party members will be added/updated dynamically
         const mainCharacterHtml = `
             <div class="party-member">
-                <div class="party-member-name" id="char-name">${charName.textContent}</div>
+                <div class="party-member-name">${characterName}</div>
                 <div class="party-member-info">
-                    <div id="char-class">${charClassDetail.textContent}</div>
-                    <div id="char-hp">${charHpDetail.textContent}</div>
+                    <div id="char-class">${charClassDetail ? charClassDetail.textContent : ''}</div>
+                    <div id="char-hp">${charHpDetail ? charHpDetail.textContent : ''}</div>
                 </div>
             </div>
         `;
@@ -584,6 +587,13 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        // Ensure we have characterId
+        if (!characterId) {
+            console.warn("No character ID available for WebSocket connection");
+            characterId = localStorage.getItem('characterId');
+            console.log(`Retrieved character ID from localStorage: ${characterId}`);
+        }
+
         // Create WebSocket connection
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = `${protocol}//${window.location.host}/ws/commands`;
@@ -599,11 +609,13 @@ document.addEventListener('DOMContentLoaded', function() {
             // Connection opened
             wsConnection.onopen = function() {
                 // Send authentication data
-                wsConnection.send(JSON.stringify({
+                const authData = {
                     token: currentToken,
                     character_id: characterId,
                     session_id: sessionId
-                }));
+                };
+                console.log("Sending WebSocket auth data:", authData);
+                wsConnection.send(JSON.stringify(authData));
                 displayMessage("WebSocket connected.", "system");
             };
 
@@ -612,9 +624,9 @@ document.addEventListener('DOMContentLoaded', function() {
             wsConnection.onmessage = function(event) {
                 try {
                     console.log("WebSocket message received:", event.data);
-                    
+
                     const data = JSON.parse(event.data);
-                    
+
                     // Handle command responses with improved error handling
                     if (data.message) {
                         if (!data.success) {
@@ -652,10 +664,34 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.data && data.data.journal) {
                         addJournalEntry(data.data.journal);
                     }
-                    
+
                     // Log command information if available
                     if (data.command) {
                         console.log("Command processed:", data.command);
+                        
+                        // Enhanced debug for look command
+                        if (data.command.name === "look" || data.command.name === "l") {
+                            console.log("LOOK COMMAND RESPONSE:", {
+                                success: data.success,
+                                message: data.message,
+                                data: data.data || {}
+                            });
+                            
+                            // Special handling for look command responses
+                            if (data.success && data.data) {
+                                // Log room details if available
+                                if (data.data.room_id) {
+                                    console.log("Room details:", {
+                                        id: data.data.room_id,
+                                        name: data.data.room_name,
+                                        exits: data.data.exits || [],
+                                        items: data.data.items || [],
+                                        npcs: data.data.npcs || [],
+                                        characters: data.data.characters || []
+                                    });
+                                }
+                            }
+                        }
                     }
                 } catch (e) {
                     console.error("Error processing WebSocket message:", e);
@@ -850,17 +886,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         try {
             console.log("Updating character info with data:", character);
-            
-            // Update main character display
-            if (charName) charName.textContent = character.name || 'Unknown Character';
+
+            // Ensure we're specifically setting the character name in the character sheet
+            const characterNameElement = document.getElementById('char-name');
+            if (characterNameElement) {
+                characterNameElement.textContent = character.name || 'Unknown Character';
+                console.log("Updated character name to:", character.name);
+            } else {
+                console.warn("Character name element not found");
+            }
 
             // Update detailed character sheet
             // Basic character information
             const characterClassLevel = `${character.character_class || 'Unknown'} ${character.level || 1}`;
-            
+
             const classLevelElement = document.getElementById('char-class-level');
             if (classLevelElement) classLevelElement.textContent = characterClassLevel;
-            
+
             const raceElement = document.getElementById('char-race');
             if (raceElement) raceElement.textContent = character.race || 'Unknown';
 
@@ -875,35 +917,35 @@ document.addEventListener('DOMContentLoaded', function() {
             // Combat stats - safely update them
             const hpDetailElement = document.getElementById('char-hp-detail');
             if (hpDetailElement) hpDetailElement.textContent = `${character.hit_points || 0}/${character.max_hit_points || character.hit_points || 0}`;
-            
+
             const armorClassElement = document.getElementById('armor-class');
             if (armorClassElement) armorClassElement.textContent = character.armor_class || 10;
-            
+
             const attackBonusElement = document.getElementById('attack-bonus');
             if (attackBonusElement) attackBonusElement.textContent = character.attack_bonus || '+1';
-            
+
             const initiativeModElement = document.getElementById('initiative-mod');
             if (initiativeModElement) initiativeModElement.textContent = calculateModifier(character.dexterity || 10);
-            
+
             const movementElement = document.getElementById('movement');
             if (movementElement) movementElement.textContent = character.movement || '40\'';
-            
+
             const experienceElement = document.getElementById('experience');
             if (experienceElement) experienceElement.textContent = `${character.experience || 0}/${getXPForNextLevel(character)}`;
 
             // Safely update saving throws
             const saveDeathElement = document.getElementById('save-death');
             if (saveDeathElement) saveDeathElement.textContent = character.save_death_ray_poison || 12;
-            
+
             const saveWandsElement = document.getElementById('save-wands');
             if (saveWandsElement) saveWandsElement.textContent = character.save_magic_wands || 13;
-            
+
             const saveParalysisElement = document.getElementById('save-paralysis');
             if (saveParalysisElement) saveParalysisElement.textContent = character.save_paralysis_petrify || 14;
-            
+
             const saveBreathElement = document.getElementById('save-breath');
             if (saveBreathElement) saveBreathElement.textContent = character.save_dragon_breath || 15;
-            
+
             const saveSpellsElement = document.getElementById('save-spells');
             if (saveSpellsElement) saveSpellsElement.textContent = character.save_spells || 16;
 
@@ -914,12 +956,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error("Error updating class features:", error);
             }
 
-            // Try to update equipment list
-            try {
-                updateInventory(character.equipment || []);
-            } catch (error) {
-                console.error("Error updating inventory:", error);
-            }
+            // No longer trying to update inventory here since we'll use the dedicated loadInventory function
+            // which makes a separate API call to get the complete inventory
 
             // Try to update weapons
             try {
@@ -934,7 +972,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } catch (error) {
                 console.error("Error updating party display:", error);
             }
-            
+
         } catch (error) {
             console.error("Error updating character info:", error);
             // Don't let errors here prevent the game from loading
@@ -1114,6 +1152,26 @@ document.addEventListener('DOMContentLoaded', function() {
     function addJournalEntry(entry) {
         if (!journalContent) return;
 
+        // Check if we have an existing entry or are creating a new one
+        let entryObject = entry;
+        if (typeof entry === 'string') {
+            const date = new Date();
+            entryObject = {
+                date: date.toLocaleString(),
+                text: entry
+            };
+        }
+
+        // Try to send to API first if we have a characterId
+        if (characterId) {
+            saveJournalEntryToAPI(characterId, entryObject.text)
+                .catch(error => {
+                    console.error("Failed to save journal entry to API:", error);
+                    // Already falls back to local storage in the API function
+                });
+        }
+
+        // Always update the UI
         if (journalContent.textContent.trim() === 'No journal entries yet.') {
             journalContent.innerHTML = '';
         }
@@ -1123,11 +1181,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const dateDiv = document.createElement('div');
         dateDiv.classList.add('entry-date');
-        dateDiv.textContent = entry.date;
+        dateDiv.textContent = entryObject.date;
 
         const textDiv = document.createElement('div');
         textDiv.classList.add('entry-text');
-        textDiv.textContent = entry.text;
+        textDiv.textContent = entryObject.text;
 
         entryDiv.appendChild(dateDiv);
         entryDiv.appendChild(textDiv);
@@ -1135,6 +1193,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Scroll to bottom
         journalContent.scrollTop = journalContent.scrollHeight;
+        
+        // Save to local storage as a backup
+        saveJournalEntryToLocalStorage(entryObject);
+    }
+    
+    // Make addJournalEntry function available globally for the inline script
+    window.addJournalEntry = addJournalEntry;
+
+    // Save journal entry to local storage for the current character
+    function saveJournalEntryToLocalStorage(entry) {
+        if (!characterId) return;
+        
+        // Get existing journal entries for this character
+        const journalKey = `journal_${characterId}`;
+        const storedEntries = localStorage.getItem(journalKey);
+        let entries = [];
+        
+        if (storedEntries) {
+            try {
+                entries = JSON.parse(storedEntries);
+            } catch (e) {
+                console.error("Failed to parse stored journal entries", e);
+                entries = [];
+            }
+        }
+        
+        // Add new entry
+        entries.push(entry);
+        
+        // Save back to local storage
+        localStorage.setItem(journalKey, JSON.stringify(entries));
     }
 
     // Handle command input
@@ -1291,7 +1380,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 return true;
             } catch (apiError) {
                 console.error("API error:", apiError);
-                
+
                 // If we have cached data, use it
                 if (cachedCharacter) {
                     console.warn("Using cached character data due to API error");
@@ -1299,7 +1388,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     displayMessage("Using cached character data due to connection issues.", "system");
                     return true;
                 }
-                
+
                 // If all else fails, use minimal data
                 console.warn("Using minimal character data as fallback");
                 updateCharacterInfo(minimumCharacterData);
@@ -1344,7 +1433,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 charisma: 10,
                 armor_class: 10
             };
-            
+
             console.warn("Using minimal character data as last resort");
             updateCharacterInfo(minimumCharacterData);
             displayMessage("Limited emergency character data loaded. Game functionality may be limited.", "system");
@@ -1367,7 +1456,8 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const inventoryData = await response.json();
-            updateInventory(inventoryData.items);
+            // The API returns an array of inventory items directly, not wrapped in an 'items' property
+            updateInventory(inventoryData);
             return true;
         } catch (error) {
             console.error("Error loading inventory:", error);
@@ -1378,6 +1468,21 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load journal for a character
     async function loadJournal(characterId) {
         try {
+            // First try to load from local storage
+            const journalKey = `journal_${characterId}`;
+            const storedEntries = localStorage.getItem(journalKey);
+            let localEntries = [];
+            
+            if (storedEntries) {
+                try {
+                    localEntries = JSON.parse(storedEntries);
+                    console.log(`Loaded ${localEntries.length} journal entries from local storage for character ${characterId}`);
+                } catch (e) {
+                    console.error("Failed to parse stored journal entries", e);
+                }
+            }
+            
+            // Then try to get from API
             const response = await fetch(`/api/characters/${characterId}/journal`, {
                 method: 'GET',
                 headers: {
@@ -1385,29 +1490,97 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const journalData = await response.json();
-
             // Clear existing entries
             journalContent.innerHTML = '';
-
-            // Add each entry
-            if (journalData.entries && journalData.entries.length > 0) {
-                journalData.entries.forEach(entry => {
-                    addJournalEntry(entry);
-                });
+            
+            if (response.ok) {
+                const journalData = await response.json();
+                // If we have entries from the API, add them
+                if (journalData.entries && journalData.entries.length > 0) {
+                    // Combine API entries with local entries
+                    const combinedEntries = [...journalData.entries, ...localEntries];
+                    // Sort by date if needed
+                    combinedEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
+                    
+                    // Display entries
+                    combinedEntries.forEach(entry => {
+                        addJournalEntryToUI(entry);
+                    });
+                } else {
+                    // Otherwise just use local entries
+                    if (localEntries.length > 0) {
+                        localEntries.forEach(entry => {
+                            addJournalEntryToUI(entry);
+                        });
+                    } else {
+                        journalContent.textContent = 'No journal entries yet.';
+                    }
+                }
             } else {
-                journalContent.textContent = 'No journal entries yet.';
+                // If API failed, just use local entries
+                if (localEntries.length > 0) {
+                    localEntries.forEach(entry => {
+                        addJournalEntryToUI(entry);
+                    });
+                } else {
+                    journalContent.textContent = 'No journal entries yet.';
+                }
             }
 
             return true;
         } catch (error) {
             console.error("Error loading journal:", error);
+            
+            // Try to use local entries as fallback
+            const journalKey = `journal_${characterId}`;
+            const storedEntries = localStorage.getItem(journalKey);
+            
+            if (storedEntries) {
+                try {
+                    const localEntries = JSON.parse(storedEntries);
+                    journalContent.innerHTML = '';
+                    
+                    if (localEntries.length > 0) {
+                        localEntries.forEach(entry => {
+                            addJournalEntryToUI(entry);
+                        });
+                        return true;
+                    }
+                } catch (e) {
+                    console.error("Failed to parse stored journal entries", e);
+                }
+            }
+            
+            journalContent.textContent = 'No journal entries yet.';
             return false;
         }
+    }
+    
+    // Function to add a journal entry to the UI without adding it to storage
+    function addJournalEntryToUI(entry) {
+        if (!journalContent) return;
+
+        if (journalContent.textContent.trim() === 'No journal entries yet.') {
+            journalContent.innerHTML = '';
+        }
+
+        const entryDiv = document.createElement('div');
+        entryDiv.classList.add('journal-entry');
+
+        const dateDiv = document.createElement('div');
+        dateDiv.classList.add('entry-date');
+        dateDiv.textContent = entry.date;
+
+        const textDiv = document.createElement('div');
+        textDiv.classList.add('entry-text');
+        textDiv.textContent = entry.text;
+
+        entryDiv.appendChild(dateDiv);
+        entryDiv.appendChild(textDiv);
+        journalContent.appendChild(entryDiv);
+
+        // Scroll to bottom
+        journalContent.scrollTop = journalContent.scrollHeight;
     }
 
     // Select a character by name
@@ -1446,3 +1619,32 @@ document.addEventListener('DOMContentLoaded', function() {
     // Start the game
     initGame();
 });
+
+// Function to save journal entry to backend API
+async function saveJournalEntryToAPI(characterId, text) {
+    try {
+        const response = await fetch('/journal/create', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ 
+                character_id: characterId,
+                text: text
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to save journal entry to server');
+        }
+        
+        return await response.json();
+    } catch (error) {
+        console.error('Error saving journal entry to API:', error);
+        // Fall back to local storage if API fails
+        saveJournalEntryToLocalStorage({
+            date: new Date().toLocaleString(),
+            text: text
+        });
+    }
+}

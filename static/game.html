@@ -339,23 +339,23 @@ Type 'help' for a list of commands.
                     console.log("Direct delete handler triggered");
                     const charId = this.getAttribute('data-id');
                     console.log("Character ID from attribute:", charId);
-                    
+
                     if (!charId) {
                         console.error("No character ID for deletion");
                         alert("Error: No character ID found");
                         return;
                     }
-                    
+
                     try {
                         const token = localStorage.getItem('token');
                         if (!token) {
                             alert("You need to be logged in to delete a character");
                             return;
                         }
-                        
+
                         // Show feedback
                         alert("Deleting character...");
-                        
+
                         // Make the API call
                         const response = await fetch(`/api/characters/${charId}`, {
                             method: 'DELETE',
@@ -364,25 +364,25 @@ Type 'help' for a list of commands.
                                 'Content-Type': 'application/json'
                             }
                         });
-                        
+
                         if (!response.ok) {
                             throw new Error(`Failed to delete: HTTP status ${response.status}`);
                         }
-                        
+
                         // Hide the modal
                         confirmDeleteModal.classList.remove('active');
                         confirmDeleteModal.style.display = 'none';
-                        
+
                         // Reload the page to refresh the character list
                         alert("Character deleted successfully!");
                         window.location.reload();
-                        
+
                     } catch (error) {
                         console.error("Error deleting character:", error);
                         alert(`Error: ${error.message}`);
                     }
                 };
-                
+
                 console.log("Direct delete handler attached");
             }
 
@@ -391,26 +391,22 @@ Type 'help' for a list of commands.
             if (journalInput) {
                 journalInput.addEventListener('keydown', function(event) {
                     if (event.key === 'Enter' && this.value.trim() !== '') {
-                        const journalContent = document.getElementById('journal-content');
-                        if (journalContent) {
-                            const date = new Date();
-                            const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-
-                            const entry = document.createElement('div');
-                            entry.classList.add('journal-entry');
-                            entry.innerHTML = `
-                                <div class="entry-date">${formattedDate}</div>
-                                <div class="entry-text">${this.value}</div>
-                            `;
-
-                            if (journalContent.innerText === 'No journal entries yet.') {
-                                journalContent.innerHTML = '';
-                            }
-
-                            journalContent.appendChild(entry);
-                            journalContent.scrollTop = journalContent.scrollHeight;
-                            this.value = '';
+                        // Use the global addJournalEntry function from game.js
+                        const text = this.value.trim();
+                        const date = new Date();
+                        const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
+                        
+                        // Call the addJournalEntry function from game.js
+                        if (window.addJournalEntry) {
+                            window.addJournalEntry({
+                                date: formattedDate,
+                                text: text
+                            });
+                        } else {
+                            console.error("addJournalEntry function not available");
                         }
+                        
+                        this.value = '';
                     }
                 });
             }
@@ -425,7 +421,7 @@ Type 'help' for a list of commands.
 
                     // Prompt for character name
                     const characterName = prompt("Enter a name for your new character:", "");
-                    
+
                     // If user cancels or enters empty name, abort
                     if (!characterName || characterName.trim() === "") {
                         return;
@@ -435,7 +431,7 @@ Type 'help' for a list of commands.
 
                     // Close the modal first for better user experience
                     closeCharacterModal();
-                    
+
                     // Then send the command
                     if (window.sendCommand) {
                         window.sendCommand(`create character ${characterName.trim()}`);
