@@ -558,31 +558,31 @@ async def debug_validation():
                 "username": "string",
                 "email": "valid_email@example.com",
                 "password": "string",
-                "password_confirm": "string"
+                "password_confirm": "string",
             },
-            "required_fields": ["username", "email", "password", "password_confirm"]
+            "required_fields": ["username", "email", "password", "password_confirm"],
         },
         "token_endpoint": {
             "url": "/api/auth/token",
-            "method": "POST", 
+            "method": "POST",
             "content_type": "application/x-www-form-urlencoded",
             "expected_format": "username=username&password=password",
-            "required_fields": ["username", "password"]
+            "required_fields": ["username", "password"],
         },
         "login_endpoint": {
             "url": "/api/auth/login",
             "method": "POST",
             "content_type": "application/json",
-            "expected_format": {
-                "username": "string",
-                "password": "string"
-            },
-            "required_fields": ["username", "password"]
-        }
+            "expected_format": {"username": "string", "password": "string"},
+            "required_fields": ["username", "password"],
+        },
     }
 
+
 @router.get("/me", response_model=schemas.UserDetail)
-async def get_current_user_details(current_user: models.User = Depends(get_current_user)):
+async def get_current_user_details(
+    current_user: models.User = Depends(get_current_user),
+):
     """Return details about the currently authenticated user"""
     try:
         # Return user details
@@ -593,11 +593,11 @@ async def get_current_user_details(current_user: models.User = Depends(get_curre
             is_active=current_user.is_active,
             is_admin=current_user.is_admin,
             created_at=current_user.created_at,
-            updated_at=current_user.updated_at
+            updated_at=current_user.updated_at,
         )
     except Exception as e:
         logger.error(f"Error getting user details: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving user details: {str(e)}"
+            detail=f"Error retrieving user details: {str(e)}",
         )

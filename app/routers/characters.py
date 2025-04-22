@@ -291,14 +291,18 @@ async def get_character(
         try:
             location_success = ensure_character_location(db, character_id)
             if location_success:
-                logger.info(f"Successfully set character {character_id} to starting location")
+                logger.info(
+                    f"Successfully set character {character_id} to starting location"
+                )
             else:
-                logger.warning(f"Could not set character {character_id} location, but continuing anyway")
+                logger.warning(
+                    f"Could not set character {character_id} location, but continuing anyway"
+                )
         except Exception as e:
             # Log the error but continue
             logger.error(f"Error ensuring character location: {str(e)}")
             # Don't re-raise, we'll return the character data anyway
-            
+
         return schemas.Character.from_orm(character)
     except HTTPException:
         raise
@@ -380,6 +384,197 @@ async def update_character_state(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating character state: {str(e)}",
+        )
+
+
+@router.get("/{character_id}/inventory", response_model=List[Dict[str, Any]])
+async def get_character_inventory(
+    character_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user),
+):
+    """Get a character's inventory in a format suitable for the UI"""
+    try:
+        # Get the character
+        character = (
+            db.query(models.Character)
+            .filter(
+                models.Character.id == character_id,
+                models.Character.user_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not character:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Character with ID {character_id} not found",
+            )
+            
+        # Convert inventory from internal format to UI format
+        inventory_list = []
+        
+        # Get inventory data
+        inventory = character.inventory or {}
+        
+        # Process each inventory item
+        for item_id_str, item_data in inventory.items():
+            try:
+                item_id = int(item_id_str)
+                
+                # Get item details from database
+                db_item = db.query(models.Item).filter(models.Item.id == item_id).first()
+                
+                if db_item:
+                    # Add item to list with full details
+                    inventory_list.append({
+                        "id": db_item.id,
+                        "name": db_item.name,
+                        "description": db_item.description,
+                        "item_type": db_item.item_type,
+                        "quantity": item_data.get("quantity", 1),
+                        "equipped": item_data.get("equipped", False),
+                        "slot": item_data.get("slot", None),
+                        "value": db_item.value,
+                        "weight": db_item.weight,
+                        "properties": db_item.properties or {}
+                    })
+                else:
+                    # Item exists in inventory but not in database - add minimal info
+                    inventory_list.append({
+                        "id": item_id,
+                        "name": f"Unknown Item ({item_id})",
+                        "description": "Item details not found",
+                        "quantity": item_data.get("quantity", 1),
+                        "equipped": item_data.get("equipped", False)
+                    })
+            except Exception as item_error:
+                logger.warning(f"Error processing inventory item {item_id_str}: {str(item_error)}")
+                # Continue processing other items
+        
+        return inventory_list
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving character inventory: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving character inventory: {str(e)}",
+        )
+
+
+@router.get("/{character_id}/journal", response_model=Dict[str, Any])
+async def get_character_journal(
+    character_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user),
+):
+    """Get a character's journal entries"""
+    try:
+        # Get the character
+        character = (
+            db.query(models.Character)
+            .filter(
+                models.Character.id == character_id,
+                models.Character.user_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not character:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Character with ID {character_id} not found",
+            )
+            
+        # For now, we'll return a sample journal structure
+        # In the future, this should be stored in the database
+        
+        # Get journal entries from database or create empty list
+        # In this implementation, we're creating a mock response
+        # since the actual journal feature is not implemented yet
+        
+        return {
+            "entries": [
+                {
+                    "date": "2025-04-21 20:45:12",
+                    "text": "Started my adventure in the village."
+                },
+                {
+                    "date": "2025-04-21 20:46:30",
+                    "text": "Found my way to the town square."
+                }
+            ]
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving character journal: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving character journal: {str(e)}",
+        )
+
+
+@router.get("/{character_id}/hirelings", response_model=List[Dict[str, Any]])
+async def get_character_hirelings(
+    character_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user),
+):
+    """Get a character's hired companions/hirelings"""
+    try:
+        # Get the character
+        character = (
+            db.query(models.Character)
+            .filter(
+                models.Character.id == character_id,
+                models.Character.user_id == current_user.id,
+            )
+            .first()
+        )
+
+        if not character:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Character with ID {character_id} not found",
+            )
+            
+        # Get hirelings from database
+        hirelings = (
+            db.query(models.Hireling)
+            .filter(models.Hireling.master_id == character_id)
+            .all()
+        )
+        
+        # Convert to response format
+        hireling_list = []
+        for h in hirelings:
+            hireling_list.append({
+                "id": h.id,
+                "name": h.name,
+                "character_class": h.character_class,
+                "level": h.level,
+                "hit_points": h.hit_points,
+                "max_hit_points": h.max_hit_points,
+                "description": h.description,
+                "abilities": h.abilities
+            })
+        
+        return hireling_list
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retrieving character hirelings: {str(e)}")
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving character hirelings: {str(e)}",
         )
 
 
@@ -705,12 +900,14 @@ def ensure_character_location(db: Session, character_id: int) -> bool:
     try:
         # First ensure room 1 exists using the character service
         from ..services.character_service import set_character_starting_location
-        
+
         # Use the service function which handles all the details including room creation
         success = set_character_starting_location(db, character_id)
-        
+
         if success:
-            logger.info(f"Successfully set character {character_id} to starting location")
+            logger.info(
+                f"Successfully set character {character_id} to starting location"
+            )
             return True
         else:
             logger.error(f"Failed to set character {character_id} to starting location")
@@ -720,3 +917,4 @@ def ensure_character_location(db: Session, character_id: int) -> bool:
         traceback.print_exc()
         db.rollback()
         return False
+

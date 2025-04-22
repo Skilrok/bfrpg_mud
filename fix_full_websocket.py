@@ -1,16 +1,17 @@
 import os
 import shutil
 
+
 def reset_websocket_file():
     """
     Completely reset the WebSocket file to a working version
     """
     websocket_file = os.path.join("app", "websockets", "__init__.py")
-    
+
     if not os.path.exists(websocket_file):
         print(f"Error: WebSocket file not found: {websocket_file}")
         return False
-    
+
     # Create a backup first
     backup_file = websocket_file + ".bak"
     try:
@@ -18,7 +19,7 @@ def reset_websocket_file():
         print(f"Created backup of WebSocket file at: {backup_file}")
     except Exception as e:
         print(f"Warning: Could not create backup: {str(e)}")
-    
+
     # Create a complete, clean WebSocket handler implementation
     new_content = '''import asyncio
 import json
@@ -224,7 +225,7 @@ class WebSocketManager:
                     try:
                         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
                         user_id = None
-                        
+
                         # Handle both formats - username as "sub" and direct user ID
                         subject = payload.get("sub")
                         if subject is not None:
@@ -238,7 +239,7 @@ class WebSocketManager:
                                 user = db.query(User).filter(User.username == subject).first()
                                 if user:
                                     user_id = user.id
-                        
+
                         if not user_id:
                             await websocket.send_json(
                                 {"success": False, "message": "Invalid token payload or user not found"}
@@ -281,20 +282,20 @@ class WebSocketManager:
                                 }
                             )
                             return
-                            
+
                         # Ensure character has a location in the starting room
                         from app.services.character_service import ensure_room_exists, set_character_starting_location
-                        
+
                         # Make sure room 1 exists
                         starter_room = ensure_room_exists(db, 1)
                         if not starter_room:
                             logger.error(f"Failed to ensure starter room exists for character {character_id}")
-                            
+
                         # Set character location
                         location_success = set_character_starting_location(db, character_id)
                         if not location_success:
                             logger.warning(f"Failed to set starting location for character {character_id}")
-                            
+
                         # Refresh character after location is set
                         db.refresh(character)
 
@@ -324,7 +325,7 @@ class WebSocketManager:
                                 {"success": False, "message": "Empty command"}
                             )
                             continue
-                        
+
                         # Refresh character object on each command
                         if character_id:
                             character = (
@@ -335,7 +336,7 @@ class WebSocketManager:
                                 )
                                 .first()
                             )
-                            
+
                             if not character:
                                 await websocket.send_json(
                                     {
@@ -354,10 +355,10 @@ class WebSocketManager:
                                 .filter(CharacterLocation.character_id == character_id)
                                 .first()
                             )
-                            
+
                             if character_location:
                                 room_id = character_location.room_id
-                                
+
                             if not character_location:
                                 # Try to set character location if it doesn't exist
                                 from app.services.character_service import set_character_starting_location
@@ -371,7 +372,7 @@ class WebSocketManager:
                                     )
                                     if character_location:
                                         room_id = character_location.room_id
-                                
+
                                 # Refresh character after location update
                                 if character:
                                     db.refresh(character)
@@ -380,7 +381,7 @@ class WebSocketManager:
                         from app.commands.parser import parse_command
 
                         cmd, args = parse_command(command_text)
-                        
+
                         # Log to help debug
                         logger.info(f"Command: {cmd}, Args: {args}, Character: {character_id}, Room: {room_id}")
 
@@ -402,7 +403,7 @@ class WebSocketManager:
                         try:
                             # Execute command
                             response = await command_registry.execute_command(ctx)
-                            
+
                             # Log the response for debugging
                             logger.info(f"Command response: success={response.success}, message_length={len(response.message) if response.message else 0}")
 
@@ -425,7 +426,7 @@ class WebSocketManager:
                             import traceback
                             logger.error(f"Error executing command: {str(e)}")
                             logger.error(traceback.format_exc())
-                            
+
                             await websocket.send_json(
                                 {
                                     "success": False,
@@ -454,13 +455,14 @@ class WebSocketManager:
             except WebSocketDisconnect:
                 self.manager.disconnect(websocket, "chat")
 '''
-    
+
     # Write the new content to the file
     with open(websocket_file, "w") as f:
         f.write(new_content)
-    
+
     print(f"Successfully updated WebSocket file: {websocket_file}")
     return True
 
+
 if __name__ == "__main__":
-    reset_websocket_file() 
+    reset_websocket_file()

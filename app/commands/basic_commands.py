@@ -41,12 +41,41 @@ class HelpCommand(CommandHandler):
         # Show general help (list of commands)
         commands = command_registry.get_command_list()
         commands_by_name = sorted(commands, key=lambda c: c.name)
-
-        # Format command list
-        help_text = "Available commands:\n"
+        
+        # Categorize commands
+        categories = {
+            "Basic": ["help", "look", "examine"],
+            "Movement": ["north", "south", "east", "west", "up", "down", "go"],
+            "Character": ["inventory", "create", "race", "class", "roll", "standard", "confirm"],
+            "Communication": ["say", "emote", "talk"],
+            "Other": []  # For any commands not in a specific category
+        }
+        
+        categorized_commands = {category: [] for category in categories}
+        
+        # Sort commands into categories
         for cmd in commands_by_name:
-            aliases = f" (aliases: {', '.join(cmd.aliases)})" if cmd.aliases else ""
-            help_text += f"- {cmd.name}{aliases}: {cmd.help_text.split('.')[0]}.\n"
+            placed = False
+            for category, cmd_list in categories.items():
+                if cmd.name in cmd_list:
+                    categorized_commands[category].append(cmd)
+                    placed = True
+                    break
+            
+            if not placed:
+                categorized_commands["Other"].append(cmd)
+        
+        # Format command list with categories
+        help_text = "Available commands:\n"
+        
+        for category, cmds in categorized_commands.items():
+            if not cmds:  # Skip empty categories
+                continue
+                
+            help_text += f"\n== {category} Commands ==\n"
+            for cmd in cmds:
+                aliases = f" (aliases: {', '.join(cmd.aliases)})" if cmd.aliases else ""
+                help_text += f"- {cmd.name}{aliases}: {cmd.help_text.split('.')[0]}.\n"
 
         help_text += (
             "\nFor more information about a specific command, type: help <command>"
@@ -57,7 +86,7 @@ class HelpCommand(CommandHandler):
             message=help_text,
             data={
                 "commands": [
-                    {"name": cmd.name, "help": cmd.help_text}
+                    {"name": cmd.name, "help": cmd.help_text, "aliases": cmd.aliases}
                     for cmd in commands_by_name
                 ]
             },
@@ -80,11 +109,63 @@ class InventoryCommand(CommandHandler):
                 errors=["No active character"],
             )
 
-        # TODO: Implement actual inventory retrieval
+        # Get the character's inventory
+        inventory = ctx.character.inventory or {}
+        
+        if not inventory:
+            return CommandResponse(
+                success=True,
+                message="Your inventory is empty.",
+                data={"inventory": []},
+            )
+            
+        # Format the inventory for display
+        inventory_message = "You check your inventory. You're carrying:\n"
+        inventory_items = []
+        
+        # Get a DB session to look up item details
+        async with get_db_context() as db:
+            for item_id_str, item_data in inventory.items():
+                try:
+                    item_id = int(item_id_str)
+                    quantity = item_data.get("quantity", 1)
+                    equipped = item_data.get("equipped", False)
+                    
+                    # Look up item details
+                    db_item = db.query(Item).filter(Item.id == item_id).first()
+                    
+                    if db_item:
+                        item_name = db_item.name
+                        item_description = f" - {db_item.description}" if db_item.description else ""
+                        equipped_text = " (equipped)" if equipped else ""
+                        quantity_text = f" (x{quantity})" if quantity > 1 else ""
+                        
+                        inventory_items.append({
+                            "id": item_id,
+                            "name": item_name,
+                            "description": db_item.description,
+                            "quantity": quantity,
+                            "equipped": equipped,
+                            "slot": item_data.get("slot", None)
+                        })
+                        
+                        inventory_message += f"- {item_name}{quantity_text}{equipped_text}{item_description}\n"
+                    else:
+                        inventory_message += f"- Unknown item (ID: {item_id}){' (equipped)' if equipped else ''}\n"
+                        inventory_items.append({
+                            "id": item_id, 
+                            "name": f"Unknown Item ({item_id})",
+                            "quantity": quantity,
+                            "equipped": equipped
+                        })
+                except Exception as e:
+                    logger.error(f"Error processing inventory item {item_id_str}: {str(e)}")
+                    inventory_message += f"- Error processing item {item_id_str}\n"
+        
         return CommandResponse(
             success=True,
-            message="You check your inventory. You're carrying nothing of interest.",
-            data={"inventory": []},
+            message=inventory_message,
+            data={"inventory": inventory_items},
         )
 
 

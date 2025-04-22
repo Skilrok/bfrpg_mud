@@ -12,13 +12,13 @@ from sqlalchemy import (
     Text,
     inspect,
 )
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 
-from app.models.base import JSON_TYPE, Base
 from app.database import engine
+from app.models.base import JSON_TYPE, Base
 
 
 class RoomType(str, enum.Enum):
@@ -101,48 +101,55 @@ class Area(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     level_range = Column(String, nullable=True)  # e.g. "1-5"
-    
+
     # The following columns may not exist in older databases, make them safe
     @declared_attr
     def is_dungeon(cls):
         try:
             insp = inspect(engine)
-            columns = [c['name'] for c in insp.get_columns('areas')]
-            if 'is_dungeon' in columns:
+            columns = [c["name"] for c in insp.get_columns("areas")]
+            if "is_dungeon" in columns:
                 return Column(Boolean, default=True)
             else:
                 return None
         except Exception as e:
             import logging
-            logging.getLogger(__name__).warning(f"Error checking is_dungeon column: {e}")
+
+            logging.getLogger(__name__).warning(
+                f"Error checking is_dungeon column: {e}"
+            )
             return Column(Boolean, default=True, nullable=True)
-    
+
     @declared_attr
     def is_hidden(cls):
         try:
             insp = inspect(engine)
-            columns = [c['name'] for c in insp.get_columns('areas')]
-            if 'is_hidden' in columns:
+            columns = [c["name"] for c in insp.get_columns("areas")]
+            if "is_hidden" in columns:
                 return Column(Boolean, default=False)
             else:
                 return None
         except Exception as e:
             import logging
+
             logging.getLogger(__name__).warning(f"Error checking is_hidden column: {e}")
             return Column(Boolean, default=False, nullable=True)
-    
+
     @declared_attr
     def properties(cls):
         try:
             insp = inspect(engine)
-            columns = [c['name'] for c in insp.get_columns('areas')]
-            if 'properties' in columns:
+            columns = [c["name"] for c in insp.get_columns("areas")]
+            if "properties" in columns:
                 return Column(JSON_TYPE, default=dict)
             else:
                 return None
         except Exception as e:
             import logging
-            logging.getLogger(__name__).warning(f"Error checking properties column: {e}")
+
+            logging.getLogger(__name__).warning(
+                f"Error checking properties column: {e}"
+            )
             return Column(JSON_TYPE, default=dict, nullable=True)
 
     # Timestamps

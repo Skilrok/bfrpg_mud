@@ -1,9 +1,10 @@
-from passlib.context import CryptContext
 import logging
 import os
-from jose import jwt
 from datetime import datetime, timedelta
+
 from fastapi import HTTPException, status
+from jose import jwt
+from passlib.context import CryptContext
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -22,6 +23,7 @@ except Exception as e:
     # Fallback to a simpler scheme if bcrypt has issues
     pwd_context = CryptContext(schemes=["sha256_crypt"], deprecated="auto")
 
+
 def verify_password(plain_password, hashed_password):
     """Verify a password against a hash"""
     try:
@@ -32,6 +34,7 @@ def verify_password(plain_password, hashed_password):
         if os.getenv("TESTING", "False").lower() == "true":
             return pwd_context.hash(plain_password) == hashed_password
         return False
+
 
 def get_password_hash(password):
     """Generate password hash"""
@@ -45,6 +48,7 @@ def get_password_hash(password):
         # In production, still try to hash even with fallback
         return pwd_context.hash(password)
 
+
 # Test environment utilities
 def is_test_environment():
     """Check if we're in a test environment"""
@@ -57,6 +61,7 @@ def get_test_hash(password):
         return f"test_hash_{password}"
     return pwd_context.hash(password)
 
+
 def create_access_token(data: dict, expires_delta: timedelta = None):
     """Create a new JWT token"""
     to_encode = data.copy()
@@ -68,21 +73,24 @@ def create_access_token(data: dict, expires_delta: timedelta = None):
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
+
 def verify_token(token: str, expected_user_id: int = None) -> bool:
     """Verify a JWT token and optionally check if it belongs to a specific user"""
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
-        
+
         if user_id is None:
             return False
-            
+
         # If expected_user_id is provided, check if it matches
         if expected_user_id is not None and int(user_id) != expected_user_id:
-            logger.warning(f"Token user ID {user_id} does not match expected {expected_user_id}")
+            logger.warning(
+                f"Token user ID {user_id} does not match expected {expected_user_id}"
+            )
             return False
-            
+
         return True
     except jwt.PyJWTError as e:
         logger.error(f"Token verification error: {str(e)}")
-        return False 
+        return False

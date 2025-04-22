@@ -14,32 +14,42 @@ from app.services.character_service import set_character_starting_location
 logger = logging.getLogger(__name__)
 
 
-async def get_character_location(db: Session, character_id: int) -> Optional[CharacterLocation]:
+async def get_character_location(
+    db: Session, character_id: int
+) -> Optional[CharacterLocation]:
     """Get the character's current location"""
     try:
         # Use direct SQL query to get location data
         location_data = db.execute(
-            text("SELECT room_id FROM character_locations WHERE character_id = :char_id"),
-            {"char_id": character_id}
+            text(
+                "SELECT room_id FROM character_locations WHERE character_id = :char_id"
+            ),
+            {"char_id": character_id},
         ).fetchone()
-        
+
         if not location_data:
             # Try to create a default location in room 1
             success = set_character_starting_location(db, character_id)
-            
+
             if success:
                 # Try to get the location again with direct SQL
                 location_data = db.execute(
-                    text("SELECT room_id FROM character_locations WHERE character_id = :char_id"),
-                    {"char_id": character_id}
+                    text(
+                        "SELECT room_id FROM character_locations WHERE character_id = :char_id"
+                    ),
+                    {"char_id": character_id},
                 ).fetchone()
-                logger.info(f"Created new default location for character {character_id}")
-                
+                logger.info(
+                    f"Created new default location for character {character_id}"
+                )
+
         if location_data:
             # Create a CharacterLocation object with the retrieved data
-            location = CharacterLocation(character_id=character_id, room_id=location_data[0])
+            location = CharacterLocation(
+                character_id=character_id, room_id=location_data[0]
+            )
             return location
-            
+
         return None
     except Exception as e:
         logger.error(f"Error getting character location: {str(e)}")
@@ -51,35 +61,42 @@ async def move_character(db: Session, character_id: int, room_id: int) -> bool:
     try:
         # Check if character has a location
         location = await get_character_location(db, character_id)
-        
+
         if not location:
             return False
-            
+
         # Check if the room exists
         room_exists = db.execute(
-            text("SELECT id FROM rooms WHERE id = :room_id"),
-            {"room_id": room_id}
+            text("SELECT id FROM rooms WHERE id = :room_id"), {"room_id": room_id}
         ).fetchone()
-        
+
         if not room_exists:
-            logger.error(f"Cannot move character {character_id} to non-existent room {room_id}")
+            logger.error(
+                f"Cannot move character {character_id} to non-existent room {room_id}"
+            )
             return False
-        
+
         # Update the character's location using raw SQL
         db.execute(
-            text("UPDATE character_locations SET room_id = :room_id WHERE character_id = :char_id"),
-            {"room_id": room_id, "char_id": character_id}
+            text(
+                "UPDATE character_locations SET room_id = :room_id WHERE character_id = :char_id"
+            ),
+            {"room_id": room_id, "char_id": character_id},
         )
         db.commit()
-        
+
         logger.info(f"Character {character_id} moved to room {room_id}")
         return True
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Database error moving character {character_id} to room {room_id}: {str(e)}")
+        logger.error(
+            f"Database error moving character {character_id} to room {room_id}: {str(e)}"
+        )
         return False
     except Exception as e:
-        logger.error(f"Error moving character {character_id} to room {room_id}: {str(e)}")
+        logger.error(
+            f"Error moving character {character_id} to room {room_id}: {str(e)}"
+        )
         return False
 
 
@@ -88,28 +105,36 @@ async def set_character_starting_location(db: Session, character_id: int) -> int
     try:
         # Check if a location already exists
         existing_location = db.execute(
-            text("SELECT room_id FROM character_locations WHERE character_id = :char_id"),
-            {"char_id": character_id}
+            text(
+                "SELECT room_id FROM character_locations WHERE character_id = :char_id"
+            ),
+            {"char_id": character_id},
         ).fetchone()
-        
+
         if existing_location:
             return existing_location[0]
-        
+
         # Create a new location using room ID 1 (default starting room)
         db.execute(
-            text("INSERT INTO character_locations (character_id, room_id) VALUES (:char_id, :room_id)"),
-            {"char_id": character_id, "room_id": 1}
+            text(
+                "INSERT INTO character_locations (character_id, room_id) VALUES (:char_id, :room_id)"
+            ),
+            {"char_id": character_id, "room_id": 1},
         )
         db.commit()
-        
+
         logger.info(f"Set character {character_id} to starting location (room 1)")
         return 1
     except SQLAlchemyError as e:
         db.rollback()
-        logger.error(f"Database error setting starting location for character {character_id}: {str(e)}")
+        logger.error(
+            f"Database error setting starting location for character {character_id}: {str(e)}"
+        )
         return 0
     except Exception as e:
-        logger.error(f"Error setting starting location for character {character_id}: {str(e)}")
+        logger.error(
+            f"Error setting starting location for character {character_id}: {str(e)}"
+        )
         return 0
 
 

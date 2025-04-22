@@ -73,10 +73,10 @@ Type 'help' for a list of commands.
             <div class="party-title">Party Window</div>
             <div id="party-members">
                 <div class="party-member">
-                    <div class="party-member-name" id="char-name">Character Name</div>
+                    <div class="party-member-name" id="party-char-name">Character Name</div>
                     <div class="party-member-info">
-                        <div id="char-class">Class: Fighter</div>
-                        <div id="char-hp">HP: 10/10</div>
+                        <div id="party-char-class">Class: Fighter</div>
+                        <div id="party-char-hp">HP: 10/10</div>
                     </div>
                 </div>
                 <!-- Other party members will be dynamically added -->
@@ -395,7 +395,7 @@ Type 'help' for a list of commands.
                         const text = this.value.trim();
                         const date = new Date();
                         const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-                        
+
                         // Call the addJournalEntry function from game.js
                         if (window.addJournalEntry) {
                             window.addJournalEntry({
@@ -405,7 +405,7 @@ Type 'help' for a list of commands.
                         } else {
                             console.error("addJournalEntry function not available");
                         }
-                        
+
                         this.value = '';
                     }
                 });

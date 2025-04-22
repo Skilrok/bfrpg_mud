@@ -515,8 +515,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // If partyMembers element doesn't exist, return
         if (!partyMembers) return;
 
-        // Get the character name from the character sheet, not using the same ID reference
-        const characterName = document.getElementById('char-name').textContent;
+        // Get the character name from the character ID (using the current characterId)
+        const characterName = document.getElementById('char-name')?.textContent || 'Character';
+        const characterClass = document.getElementById('char-class-level')?.textContent || 'Unknown';
+        const characterHP = document.getElementById('char-hp-detail')?.textContent || '?/?';
 
         // Keep the main character at the top
         // Other party members will be added/updated dynamically
@@ -524,8 +526,8 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="party-member">
                 <div class="party-member-name">${characterName}</div>
                 <div class="party-member-info">
-                    <div id="char-class">${charClassDetail ? charClassDetail.textContent : ''}</div>
-                    <div id="char-hp">${charHpDetail ? charHpDetail.textContent : ''}</div>
+                    <div>${characterClass}</div>
+                    <div>HP: ${characterHP}</div>
                 </div>
             </div>
         `;
@@ -899,9 +901,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const characterNameElement = document.getElementById('char-name');
             if (characterNameElement) {
                 characterNameElement.textContent = character.name || 'Unknown Character';
-                console.log("Updated character name to:", character.name);
+                console.log("Updated character sheet name to:", character.name);
             } else {
-                console.warn("Character name element not found");
+                console.warn("Character name element not found in character sheet");
+            }
+            
+            // Also update the character name in the party window
+            const partyCharNameElement = document.getElementById('party-char-name');
+            if (partyCharNameElement) {
+                partyCharNameElement.textContent = character.name || 'Unknown Character';
+                console.log("Updated party window name to:", character.name);
+            } else {
+                console.warn("Character name element not found in party window");
             }
 
             // Update detailed character sheet
