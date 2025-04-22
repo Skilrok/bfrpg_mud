@@ -1,10 +1,14 @@
-from typing import Optional
-from pydantic import BaseModel
 from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel
+
 from app.models.hireling import HirelingType
+
 
 class HirelingBase(BaseModel):
     """Base hireling schema with common attributes"""
+
     name: str
     character_class: str
     level: int = 1
@@ -17,12 +21,16 @@ class HirelingBase(BaseModel):
         from_attributes = True
         orm_mode = True  # For compatibility with older Pydantic
 
+
 class HirelingCreate(HirelingBase):
     """Schema for hireling creation"""
+
     pass
+
 
 class Hireling(HirelingBase):
     """Schema for hireling responses"""
+
     id: int
     is_available: bool
     user_id: int
@@ -34,8 +42,10 @@ class Hireling(HirelingBase):
         from_attributes = True
         orm_mode = True  # For compatibility with older Pydantic
 
+
 class HirelingUpdate(BaseModel):
     """Schema for hireling updates"""
+
     name: Optional[str] = None
     character_class: Optional[str] = None
     level: Optional[int] = None
@@ -46,7 +56,7 @@ class HirelingUpdate(BaseModel):
     master_id: Optional[int] = None
     days_unpaid: Optional[int] = None
     hireling_type: Optional[HirelingType] = None
-    
+
     class Config:
         from_attributes = True
-        orm_mode = True  # For compatibility with older Pydantic 
+        orm_mode = True  # For compatibility with older Pydantic

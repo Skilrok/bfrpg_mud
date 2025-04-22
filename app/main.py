@@ -9,8 +9,18 @@ from fastapi.staticfiles import StaticFiles
 
 from app.config import configure_app_from_env
 from app.database import get_db, init_db
-from app.routers import auth, characters, combat, commands, hirelings, items, users
-from app.routers import areas, exits, rooms
+from app.routers import (
+    areas,
+    auth,
+    characters,
+    combat,
+    commands,
+    exits,
+    hirelings,
+    items,
+    rooms,
+    users,
+)
 from app.websockets import WebSocketManager
 
 logger = logging.getLogger(__name__)

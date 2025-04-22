@@ -40,4 +40,4 @@
 - [ ] Implement NPC interactions
 - [ ] Implement combat system
 - [ ] Add more areas and rooms
-- [ ] Create web UI for game 
+- [ ] Create web UI for game

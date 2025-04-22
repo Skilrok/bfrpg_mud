@@ -15,4 +15,4 @@
 - Added missing is_admin column to users table
 
 ### Pending
-- See TODO.md for remaining tasks 
+- See TODO.md for remaining tasks

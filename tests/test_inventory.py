@@ -1,21 +1,23 @@
+import json
+import os
+import random
+import shutil
+import string
+import threading
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, scoped_session
-import random
-import string
-import os
-import json
-import shutil
-from datetime import datetime, timedelta
 from jose import jwt
-import threading
-from app.main import app
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+
 from app.database import get_db
+from app.main import app
+from app.models import Character, Item, ItemType, User
 from app.models.base import Base
-from app.models import User, Character, Item, ItemType
-from app.schemas import CharacterRace, CharacterClass
-from app.routers.auth import SECRET_KEY, ALGORITHM
+from app.routers.auth import ALGORITHM, SECRET_KEY
+from app.schemas import CharacterClass, CharacterRace
 
 # Use file-based SQLite for testing to avoid memory issues with in-memory databases
 # Each test run gets a unique database file to prevent conflicts
@@ -30,7 +32,7 @@ engine = create_engine(
     connect_args={"check_same_thread": False},
     # Use a small pool with just enough connections for the test
     pool_size=1,
-    max_overflow=0
+    max_overflow=0,
 )
 
 # Use scoped_session to ensure thread safety
@@ -46,13 +48,13 @@ pytestmark = pytest.mark.xfail(reason="Database schema may not be fully migrated
 def test_db():
     # Create the database and tables
     Base.metadata.create_all(bind=engine)
-    
+
     # Create a test session - scoped_session creates thread-local session
     db = TestingSessionLocal()
-    
+
     # Create test data
     create_test_data(db)
-    
+
     try:
         yield db
     finally:
@@ -60,7 +62,7 @@ def test_db():
         db.close()
         # Remove thread-local session
         TestingSessionLocal.remove()
-        
+
         # Clean up database file after test
         try:
             Base.metadata.drop_all(bind=engine)
@@ -80,30 +82,30 @@ def client(test_db):
         finally:
             # Don't close here, will be done in test_db fixture
             pass
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    
+
     # Create test client
     with TestClient(app) as client:
         yield client
-    
+
     # Clean up
     app.dependency_overrides.clear()
 
 
 def create_test_data(db):
-    # Create a test user 
+    # Create a test user
     test_user = User(
         username="testuser",
         email="test@example.com",
         # Skip bcrypt hashing by using a predefined hash
         hashed_password="$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW",  # "password"
-        is_active=True
+        is_active=True,
     )
     db.add(test_user)
     db.commit()
     db.refresh(test_user)
-    
+
     # Create test items
     items = [
         Item(
@@ -112,7 +114,7 @@ def create_test_data(db):
             item_type=ItemType.WEAPON,
             value=10,
             weight=2.0,
-            properties={"damage": "1d6"}
+            properties={"damage": "1d6"},
         ),
         Item(
             name="Test Armor",
@@ -120,7 +122,7 @@ def create_test_data(db):
             item_type=ItemType.ARMOR,
             value=50,
             weight=10.0,
-            properties={"ac_bonus": 4}
+            properties={"ac_bonus": 4},
         ),
         Item(
             name="Test Potion",
@@ -128,13 +130,13 @@ def create_test_data(db):
             item_type=ItemType.POTION,
             value=5,
             weight=0.5,
-            properties={"effect": "healing", "amount": "1d8"}
-        )
+            properties={"effect": "healing", "amount": "1d8"},
+        ),
     ]
-    
+
     for item in items:
         db.add(item)
-    
+
     # Create a test character
     test_character = Character(
         name="Test Character",
@@ -161,7 +163,7 @@ def create_test_data(db):
         save_dragon_breath=15,
         save_spells=16,
         special_abilities=[],
-        user_id=test_user.id
+        user_id=test_user.id,
     )
     db.add(test_character)
     db.commit()
@@ -171,10 +173,7 @@ def create_test_data(db):
 def auth_token():
     # Skip login process and create JWT token directly
     access_token_expires = datetime.utcnow() + timedelta(minutes=30)
-    to_encode = {
-        "sub": "testuser",
-        "exp": access_token_expires
-    }
+    to_encode = {"sub": "testuser", "exp": access_token_expires}
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -182,8 +181,7 @@ def auth_token():
 def test_get_items(client, auth_token):
     # Test listing all items
     response = client.get(
-        "/api/items/",
-        headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/items/", headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 200
     items = response.json()
@@ -194,11 +192,10 @@ def test_get_items(client, auth_token):
 def test_get_item(client, auth_token, test_db):
     # Get the first item
     item = test_db.query(Item).first()
-    
+
     # Test getting a specific item
     response = client.get(
-        f"/api/items/{item.id}",
-        headers={"Authorization": f"Bearer {auth_token}"}
+        f"/api/items/{item.id}", headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 200
     assert response.json()["name"] == "Test Sword"
@@ -212,13 +209,11 @@ def test_create_item(client, auth_token):
         "item_type": "weapon",
         "value": 15,
         "weight": 3.0,
-        "properties": {"damage": "1d8"}
+        "properties": {"damage": "1d8"},
     }
-    
+
     response = client.post(
-        "/api/items/",
-        json=new_item,
-        headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/items/", json=new_item, headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 200
     created_item = response.json()
@@ -230,17 +225,17 @@ def test_add_item_to_inventory(client, auth_token, test_db):
     # Get character and item
     character = test_db.query(Character).first()
     item = test_db.query(Item).first()
-    
+
     # Test adding item to inventory
     response = client.post(
         f"/api/items/inventory/{character.id}/add",
         json={"item_id": item.id, "quantity": 2},
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
-    
+
     assert response.status_code == 200
     updated_character = response.json()
-    
+
     # Check inventory contains the item
     item_id_str = str(item.id)
     assert item_id_str in updated_character["inventory"]
@@ -251,28 +246,28 @@ def test_equip_item(client, auth_token, test_db):
     # Get character and item
     character = test_db.query(Character).first()
     item = test_db.query(Item).filter(Item.item_type == ItemType.WEAPON).first()
-    
+
     # First add item to inventory
     response = client.post(
         f"/api/items/inventory/{character.id}/add",
         json={"item_id": item.id, "quantity": 1},
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
-    
+
     # Now equip the item
     response = client.post(
         f"/api/items/inventory/{character.id}/equip",
         json={"item_id": item.id, "slot": "main_hand"},
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
-    
+
     assert response.status_code == 200
     updated_character = response.json()
-    
+
     # Check equipment contains the item
     assert "main_hand" in updated_character["equipment"]
     assert updated_character["equipment"]["main_hand"] == item.id
-    
+
     # Check inventory item is marked as equipped
     item_id_str = str(item.id)
     assert updated_character["inventory"][item_id_str]["equipped"] == True
@@ -282,32 +277,32 @@ def test_equip_item(client, auth_token, test_db):
 def test_unequip_item(client, auth_token, test_db):
     # Get character
     character = test_db.query(Character).first()
-    
+
     # First add and equip an item
     item = test_db.query(Item).filter(Item.item_type == ItemType.WEAPON).first()
     client.post(
         f"/api/items/inventory/{character.id}/add",
         json={"item_id": item.id, "quantity": 1},
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
     client.post(
         f"/api/items/inventory/{character.id}/equip",
         json={"item_id": item.id, "slot": "main_hand"},
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
-    
+
     # Now unequip the item
     response = client.post(
         f"/api/items/inventory/{character.id}/unequip?slot=main_hand",
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
-    
+
     assert response.status_code == 200
     updated_character = response.json()
-    
+
     # Check equipment doesn't contain the item
     assert "main_hand" not in updated_character["equipment"]
-    
+
     # Check inventory item is marked as not equipped
     item_id_str = str(item.id)
     assert updated_character["inventory"][item_id_str]["equipped"] == False
@@ -326,20 +321,20 @@ def test_create_character_with_equipment(client, auth_token):
         "wisdom": 12,
         "dexterity": 14,
         "constitution": 15,
-        "charisma": 8
+        "charisma": 8,
     }
-    
+
     response = client.post(
         "/api/characters/",
         json=new_character,
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
-    
+
     assert response.status_code == 200
     created_character = response.json()
-    
+
     # Verify character was created with inventory
     assert len(created_character["inventory"]) > 0
-    
+
     # Verify character has some equipment
-    assert len(created_character["equipment"]) > 0 
+    assert len(created_character["equipment"]) > 0

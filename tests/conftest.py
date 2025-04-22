@@ -16,9 +16,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
 
 from app.database import get_db
-from app.models.base import Base
 from app.main import app
 from app.models import Character, User
+from app.models.base import Base
 from app.routers.auth import create_access_token, get_current_user
 from tests.factories import (
     create_test_character,

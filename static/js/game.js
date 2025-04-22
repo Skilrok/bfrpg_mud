@@ -59,37 +59,39 @@ document.addEventListener('DOMContentLoaded', function() {
             if (event.key === 'Enter' && this.value.trim() !== '') {
                 const date = new Date();
                 const formattedDate = `${date.toLocaleDateString()} ${date.toLocaleTimeString()}`;
-                
+
                 addJournalEntry({
                     date: formattedDate,
                     text: this.value.trim()
                 });
-                
+
                 // Save journal entry to API (if implemented)
                 // saveJournalEntry(characterId, this.value.trim());
-                
+
                 this.value = '';
             }
         });
     }
 
-    // Create new character button
+    // Create new character button is now handled in the inline script in game.html
+    /* 
     let createCharPending = false;
     createCharacterBtn.addEventListener('click', function() {
         // Prevent multiple clicks
         if (createCharPending) return;
-        
+
         createCharPending = true;
-        
+
         // Send a command to begin character creation
         sendCommand('create character New Character');
         hideCharacterSelectionModal();
-        
+
         // Reset after a delay
         setTimeout(() => {
             createCharPending = false;
         }, 1000);
     });
+    */
 
     // Game state
     let gameHistory = [];
@@ -112,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (characterSelectionModal) {
             characterSelectionModal.style.display = 'none';
         }
-        
+
         // Check URL parameters first (they override localStorage)
         const urlParams = new URLSearchParams(window.location.search);
         if (urlParams.has('char')) {
@@ -124,10 +126,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 characterId = urlCharId;
             }
         }
-        
+
         // Check if we have a character ID
         if (characterId) {
             console.log("Using character ID:", characterId);
+            // Show loading message
+            displayMessage("Loading character data...", "system");
+            
             // Try to load the character data
             loadCharacterData(characterId)
                 .then(success => {
@@ -135,14 +140,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayMessage("Welcome to Basic Fantasy RPG MUD!", "system");
                         displayMessage("Type 'help' for a list of commands.", "system");
                         // Load party members (hirelings) if available
-                        loadPartyMembers(characterId);
+                        loadPartyMembers(characterId).catch(err => {
+                            console.warn("Failed to load party members:", err);
+                            // This isn't critical, so don't show an error to the user
+                        });
                     } else {
                         console.error("Failed to load character data for ID:", characterId);
                         // Clear invalid character ID
                         localStorage.removeItem('characterId');
                         characterId = null;
-                        // Display error message but don't auto-show character selection
-                        displayMessage("Error loading character data. Type 'characters' to select a character.", "error");
+                        
+                        // Display friendly error message
+                        displayMessage("[ERROR]: Error loading character data. Please try again.", "error");
+                        displayMessage("Type 'characters' to open the character selection screen.", "system");
                     }
                 })
                 .catch(error => {
@@ -150,15 +160,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Clear invalid character ID
                     localStorage.removeItem('characterId');
                     characterId = null;
-                    // Display error message but don't auto-show character selection
-                    displayMessage("Error loading character data. Type 'characters' to select a character.", "error");
+                    
+                    // Display friendly error message
+                    displayMessage("[ERROR]: Error loading character data. Please try again.", "error");
+                    displayMessage("Type 'characters' to open the character selection screen.", "system");
                 });
         } else {
             // Show welcome message first
             displayMessage("Welcome to Basic Fantasy RPG MUD!", "system");
             displayMessage("You need to select a character to play. Opening character selection...", "system");
             displayMessage("Type 'characters' if you need to reopen the character selection screen.", "system");
-            
+
             // Use timeout to show character selection after messages
             setTimeout(() => {
                 showCharacterSelection();
@@ -197,6 +209,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 displayMessage("Error loading characters. Please try again later.", "error");
             });
     }
+
+    // Make the showCharacterSelection function available globally
+    window.showCharacterSelection = showCharacterSelection;
 
     // Hide character selection modal
     function hideCharacterSelectionModal() {
@@ -272,12 +287,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <div class="character-card-actions">
                     <button class="btn select-btn" data-id="${character.id}">Select Character</button>
+                    <button class="btn delete-char-btn danger-btn" data-id="${character.id}" data-name="${character.name}">Delete</button>
                 </div>
             `;
 
             characterListContainer.appendChild(card);
         });
-        
+
         // Attach event listeners to select buttons
         document.querySelectorAll('.select-btn').forEach((btn) => {
             btn.addEventListener('click', (e) => {
@@ -288,27 +304,57 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+        
+        // Attach event listeners to delete buttons
+        document.querySelectorAll('.delete-char-btn').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent the card click from firing
+                const charId = btn.getAttribute('data-id');
+                const charName = btn.getAttribute('data-name');
+                
+                if (charId) {
+                    // Show the confirmation modal
+                    const confirmDeleteModal = document.getElementById('confirm-delete-modal');
+                    const deleteConfirmationMessage = document.getElementById('delete-confirmation-message');
+                    const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
+                    
+                    // Update the confirmation message
+                    deleteConfirmationMessage.textContent = `Are you sure you want to delete ${charName}? This action cannot be undone.`;
+                    
+                    // Set the character ID for the confirm button
+                    confirmDeleteBtn.setAttribute('data-id', charId);
+                    console.log("Set data-id on confirm button:", charId);
+                    
+                    // Show the delete confirmation modal
+                    confirmDeleteModal.classList.add('active');
+                    confirmDeleteModal.style.display = 'block';
+                }
+            });
+        });
     }
 
     // Select a character and start the game
     function selectCharacter(id) {
         // Ensure id is treated as a string (it might come as a number from API)
         id = String(id);
-        
+
         // Set character state
         selectedCharacterId = id;
         characterId = id;
         localStorage.setItem('characterId', id);
-        
+
         console.log("Character selected:", id);
 
         // Find character info in our list
         const selectedCharacter = characters.find(c => String(c.id) === id);
-        
+
         // First hide the modal immediately to provide user feedback
         if (characterSelectionModal) {
             hideCharacterSelectionModal();
         }
+
+        // Show a loading message to provide feedback
+        displayMessage("Loading character data...", "system");
 
         // Load the character data
         loadCharacterData(id)
@@ -320,23 +366,124 @@ document.addEventListener('DOMContentLoaded', function() {
                         displayMessage("Character selected successfully", "system");
                     }
                     displayMessage("Type 'look' to see your surroundings.", "system");
-                    
+
                     // Load party members
-                    loadPartyMembers(id);
+                    loadPartyMembers(id).catch(error => {
+                        console.warn("Error loading party members:", error);
+                        // Don't display an error to the user, this is not critical
+                    });
                 } else {
                     displayMessage("Failed to load character data. Please try again.", "error");
-                    // Don't reopen the modal, let the user decide if they want to try again
+                    // Add a helpful command suggestion
+                    displayMessage("Type 'characters' to re-open the character selection screen.", "system");
                 }
             })
             .catch(error => {
                 console.error("Error loading character:", error);
                 displayMessage("Error loading character data. Please try again.", "error");
-                // Don't reopen the modal, let the user decide if they want to try again
+                displayMessage("Type 'characters' to re-open the character selection screen.", "system");
             });
     }
 
     // Make sure selectCharacter is available globally for the inline script
     window.selectCharacter = selectCharacter;
+
+    // Delete character function
+    async function deleteCharacter(id) {
+        // Ensure id is treated as a string
+        id = String(id);
+        
+        console.log("Starting deleteCharacter function with ID:", id);
+        
+        try {
+            // Show a loading message
+            displayMessage("Deleting character...", "system");
+            
+            // Log the token (partial) to verify authentication
+            if (token) {
+                console.log(`Using token: ${token.substring(0, 10)}...`);
+            } else {
+                console.log("No authentication token found!");
+                throw new Error("Authentication token missing");
+            }
+            
+            // Construct the API URL
+            const apiUrl = `/api/characters/${id}`;
+            console.log(`Sending DELETE request to ${apiUrl}`);
+            
+            // Send DELETE request to the API
+            const response = await fetch(apiUrl, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+
+            console.log("Delete response status:", response.status);
+            
+            try {
+                // Try to parse response as JSON
+                const responseData = await response.clone().json();
+                console.log("Response data:", responseData);
+            } catch (e) {
+                // If not JSON, try to get text
+                const responseText = await response.clone().text();
+                console.log("Response text:", responseText.substring(0, 100));
+            }
+
+            // Check if the deletion was successful
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.detail || `HTTP error! status: ${response.status}`;
+                throw new Error(errorMessage);
+            }
+
+            // Reload the character list to update the UI
+            console.log("Character deleted successfully, reloading character list");
+            await loadCharacters()
+                .then(chars => {
+                    characters = chars;
+                    renderCharacterList();
+                    
+                    // If the deleted character was the currently selected one, clear the selection
+                    if (id === characterId) {
+                        console.log("Deleted the currently selected character, clearing selection");
+                        localStorage.removeItem('characterId');
+                        characterId = null;
+                        selectedCharacterId = null;
+                        
+                        // Clear the UI
+                        updateCharacterInfo({
+                            name: "No Character Selected",
+                            race: "",
+                            character_class: "",
+                            level: "",
+                            strength: 0,
+                            intelligence: 0,
+                            wisdom: 0,
+                            dexterity: 0,
+                            constitution: 0,
+                            charisma: 0,
+                            hit_points: 0,
+                            armor_class: 0,
+                            gold: 0,
+                            inventory: [],
+                            equipment: []
+                        });
+                    }
+                    
+                    displayMessage("Character deleted successfully.", "system");
+                });
+        } catch (error) {
+            console.error("Error deleting character:", error);
+            displayMessage(`Error deleting character: ${error.message}`, "error");
+        }
+    }
+
+    // Make the deleteCharacter function globally available - make sure it's exported correctly
+    window.deleteCharacter = deleteCharacter;
+    console.log("Exported deleteCharacter function to window:", typeof window.deleteCharacter === 'function');
 
     // Load party members (character + hirelings)
     async function loadPartyMembers(characterId) {
@@ -446,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (wsConnection && wsConnection.readyState !== WebSocket.CLOSED) {
                 wsConnection.close();
             }
-            
+
             wsConnection = new WebSocket(wsUrl);
 
             // Connection opened
@@ -461,41 +608,58 @@ document.addEventListener('DOMContentLoaded', function() {
             };
 
             // Listen for messages
+            // Fixed WebSocket message handling
             wsConnection.onmessage = function(event) {
-                const data = JSON.parse(event.data);
+                try {
+                    console.log("WebSocket message received:", event.data);
+                    
+                    const data = JSON.parse(event.data);
+                    
+                    // Handle command responses with improved error handling
+                    if (data.message) {
+                        if (!data.success) {
+                            // Handle error messages
+                            displayMessage(data.message, "error");
 
-                if (data.message) {
-                    if (!data.success) {
-                        // Handle error messages
-                        displayMessage(data.message, "error");
-                        
-                        // If token is invalid, redirect to login
-                        if (data.message.includes("Invalid or expired token")) {
-                            displayMessage("Session expired. Please log in again.", "error");
-                            setTimeout(() => {
-                                localStorage.removeItem('token');
-                                window.location.href = 'login.html';
-                            }, 2000);
+                            // If token is invalid, redirect to login
+                            if (data.message && data.message.includes && data.message.includes("Invalid or expired token")) {
+                                displayMessage("Session expired. Please log in again.", "error");
+                                setTimeout(() => {
+                                    localStorage.removeItem('token');
+                                    window.location.href = 'login.html';
+                                }, 2000);
+                            }
+                        } else {
+                            // Regular success messages
+                            displayMessage(data.message, "normal");
                         }
                     } else {
-                        // Regular success messages
-                        displayMessage(data.message, "normal");
+                        // Handle messages without a message property
+                        console.warn("WebSocket message missing 'message' property:", data);
                     }
-                }
 
-                // Update character info if provided
-                if (data.data && data.data.character) {
-                    updateCharacterInfo(data.data.character);
-                }
+                    // Update character info if provided
+                    if (data.data && data.data.character) {
+                        updateCharacterInfo(data.data.character);
+                    }
 
-                // Update inventory if provided
-                if (data.data && data.data.inventory) {
-                    updateInventory(data.data.inventory);
-                }
+                    // Update inventory if provided
+                    if (data.data && data.data.inventory) {
+                        updateInventory(data.data.inventory);
+                    }
 
-                // Update journal if provided
-                if (data.data && data.data.journal) {
-                    addJournalEntry(data.data.journal);
+                    // Update journal if provided
+                    if (data.data && data.data.journal) {
+                        addJournalEntry(data.data.journal);
+                    }
+                    
+                    // Log command information if available
+                    if (data.command) {
+                        console.log("Command processed:", data.command);
+                    }
+                } catch (e) {
+                    console.error("Error processing WebSocket message:", e);
+                    displayMessage("Error processing server response. Check console for details.", "error");
                 }
             };
 
@@ -510,7 +674,7 @@ document.addEventListener('DOMContentLoaded', function() {
             wsConnection.onclose = function(event) {
                 const reason = event.reason || "Unknown reason";
                 displayMessage(`WebSocket connection closed. Code=${event.code} reason=${reason}`, "system");
-                
+
                 // Try to reconnect unless it was a clean close (1000) or authentication issue (4000-4099)
                 if (event.code !== 1000 && (event.code < 4000 || event.code > 4099)) {
                     displayMessage("Attempting to reconnect in 3 seconds...", "system");
@@ -561,25 +725,25 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Command debounced:", command);
             return;
         }
-        
+
         // Update debounce tracking
         lastCommand = command;
         lastCommandTime = now;
-        
+
         // Add command to history
         gameHistory.push(command);
         historyIndex = gameHistory.length;
 
         // Special client-side commands
         const commandLower = command.trim().toLowerCase();
-        
+
         if (commandLower === "characters") {
             displayMessage("Opening character selection...", "system");
             showCharacterSelection();
             commandInput.value = '';
             return;
         }
-        
+
         if (commandLower.startsWith("select ")) {
             const characterName = command.trim().substring(7);
             if (characterName) {
@@ -611,7 +775,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }, 2000);
             return;
         }
-        
+
         try {
             // Construct headers with current token
             const headers = {
@@ -637,7 +801,7 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.message) {
                 if (!data.success) {
                     displayMessage(data.message, "error");
-                    
+
                     // Check if we need to show character selection
                     if (data.message.includes("need to select or create a character") ||
                         data.message.includes("No active character")) {
@@ -679,59 +843,128 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update character information
     function updateCharacterInfo(character) {
-        if (!character) return;
+        if (!character) {
+            console.warn("Attempted to update character with null data");
+            return;
+        }
 
-        // Update main character display
-        if (charName) charName.textContent = character.name || 'Unknown Character';
-        
-        // Update detailed character sheet
-        // Basic character information
-        const characterClassLevel = `${character.character_class || 'Unknown'} ${character.level || 1}`;
-        document.getElementById('char-class-level').textContent = characterClassLevel;
-        document.getElementById('char-race').textContent = character.race || 'Unknown';
-        
-        // Ability scores
-        updateAbilityScore('char-str', character.strength || 10);
-        updateAbilityScore('char-dex', character.dexterity || 10);
-        updateAbilityScore('char-con', character.constitution || 10);
-        updateAbilityScore('char-int', character.intelligence || 10);
-        updateAbilityScore('char-wis', character.wisdom || 10);
-        updateAbilityScore('char-cha', character.charisma || 10);
-        
-        // Combat stats
-        document.getElementById('char-hp-detail').textContent = `${character.hit_points || 0}/${character.max_hit_points || character.hit_points || 0}`;
-        document.getElementById('armor-class').textContent = character.armor_class || 10;
-        document.getElementById('attack-bonus').textContent = character.attack_bonus || '+1';
-        document.getElementById('initiative-mod').textContent = calculateModifier(character.dexterity || 10);
-        document.getElementById('movement').textContent = character.movement || '40\'';
-        document.getElementById('experience').textContent = `${character.experience || 0}/${getXPForNextLevel(character)}`;
-        
-        // Saving throws
-        document.getElementById('save-death').textContent = character.save_death_ray_poison || 12;
-        document.getElementById('save-wands').textContent = character.save_magic_wands || 13;
-        document.getElementById('save-paralysis').textContent = character.save_paralysis_petrify || 14;
-        document.getElementById('save-breath').textContent = character.save_dragon_breath || 15;
-        document.getElementById('save-spells').textContent = character.save_spells || 16;
-        
-        // Class features
-        updateClassFeatures(character);
+        try {
+            console.log("Updating character info with data:", character);
+            
+            // Update main character display
+            if (charName) charName.textContent = character.name || 'Unknown Character';
 
-        // Update equipment list
-        updateInventory(character.equipment || []);
-        
-        // Update weapons
-        updateWeapons(character.weapons || []);
-        
-        // Update party display
-        updatePartyDisplay();
+            // Update detailed character sheet
+            // Basic character information
+            const characterClassLevel = `${character.character_class || 'Unknown'} ${character.level || 1}`;
+            
+            const classLevelElement = document.getElementById('char-class-level');
+            if (classLevelElement) classLevelElement.textContent = characterClassLevel;
+            
+            const raceElement = document.getElementById('char-race');
+            if (raceElement) raceElement.textContent = character.race || 'Unknown';
+
+            // Safely update ability scores
+            safeUpdateAbilityScore('char-str', character.strength || 10);
+            safeUpdateAbilityScore('char-dex', character.dexterity || 10);
+            safeUpdateAbilityScore('char-con', character.constitution || 10);
+            safeUpdateAbilityScore('char-int', character.intelligence || 10);
+            safeUpdateAbilityScore('char-wis', character.wisdom || 10);
+            safeUpdateAbilityScore('char-cha', character.charisma || 10);
+
+            // Combat stats - safely update them
+            const hpDetailElement = document.getElementById('char-hp-detail');
+            if (hpDetailElement) hpDetailElement.textContent = `${character.hit_points || 0}/${character.max_hit_points || character.hit_points || 0}`;
+            
+            const armorClassElement = document.getElementById('armor-class');
+            if (armorClassElement) armorClassElement.textContent = character.armor_class || 10;
+            
+            const attackBonusElement = document.getElementById('attack-bonus');
+            if (attackBonusElement) attackBonusElement.textContent = character.attack_bonus || '+1';
+            
+            const initiativeModElement = document.getElementById('initiative-mod');
+            if (initiativeModElement) initiativeModElement.textContent = calculateModifier(character.dexterity || 10);
+            
+            const movementElement = document.getElementById('movement');
+            if (movementElement) movementElement.textContent = character.movement || '40\'';
+            
+            const experienceElement = document.getElementById('experience');
+            if (experienceElement) experienceElement.textContent = `${character.experience || 0}/${getXPForNextLevel(character)}`;
+
+            // Safely update saving throws
+            const saveDeathElement = document.getElementById('save-death');
+            if (saveDeathElement) saveDeathElement.textContent = character.save_death_ray_poison || 12;
+            
+            const saveWandsElement = document.getElementById('save-wands');
+            if (saveWandsElement) saveWandsElement.textContent = character.save_magic_wands || 13;
+            
+            const saveParalysisElement = document.getElementById('save-paralysis');
+            if (saveParalysisElement) saveParalysisElement.textContent = character.save_paralysis_petrify || 14;
+            
+            const saveBreathElement = document.getElementById('save-breath');
+            if (saveBreathElement) saveBreathElement.textContent = character.save_dragon_breath || 15;
+            
+            const saveSpellsElement = document.getElementById('save-spells');
+            if (saveSpellsElement) saveSpellsElement.textContent = character.save_spells || 16;
+
+            // Try to update class features
+            try {
+                updateClassFeatures(character);
+            } catch (error) {
+                console.error("Error updating class features:", error);
+            }
+
+            // Try to update equipment list
+            try {
+                updateInventory(character.equipment || []);
+            } catch (error) {
+                console.error("Error updating inventory:", error);
+            }
+
+            // Try to update weapons
+            try {
+                updateWeapons(character.weapons || []);
+            } catch (error) {
+                console.error("Error updating weapons:", error);
+            }
+
+            // Try to update party display
+            try {
+                updatePartyDisplay();
+            } catch (error) {
+                console.error("Error updating party display:", error);
+            }
+            
+        } catch (error) {
+            console.error("Error updating character info:", error);
+            // Don't let errors here prevent the game from loading
+        }
     }
-    
+
+    // Safe version of updateAbilityScore that won't crash if elements are missing
+    function safeUpdateAbilityScore(elementId, score) {
+        try {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.textContent = score;
+                // Also update the modifier
+                const modId = `${elementId}-mod`;
+                const modElement = document.getElementById(modId);
+                if (modElement) {
+                    modElement.textContent = calculateModifier(score);
+                }
+            }
+        } catch (error) {
+            console.error(`Error updating ability score ${elementId}:`, error);
+        }
+    }
+
     // Helper function to calculate ability modifier
     function calculateModifier(abilityScore) {
         const mod = Math.floor((abilityScore - 10) / 2);
         return mod >= 0 ? `+${mod}` : `${mod}`;
     }
-    
+
     // Helper function to get XP needed for next level
     function getXPForNextLevel(character) {
         const level = character.level || 1;
@@ -739,29 +972,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const xpTable = [0, 2000, 4000, 8000, 16000, 32000, 64000, 120000, 240000, 360000];
         return xpTable[level] || xpTable[xpTable.length - 1];
     }
-    
-    // Update ability score and modifier
-    function updateAbilityScore(elementId, score) {
-        const element = document.getElementById(elementId);
-        if (element) {
-            element.textContent = score;
-            // Also update the modifier
-            const modId = `${elementId}-mod`;
-            const modElement = document.getElementById(modId);
-            if (modElement) {
-                modElement.textContent = calculateModifier(score);
-            }
-        }
-    }
-    
+
     // Update class features based on character class
     function updateClassFeatures(character) {
         const featuresElement = document.getElementById('class-features');
         if (!featuresElement) return;
-        
+
         const charClass = character.character_class || '';
         let featuresHTML = '';
-        
+
         // Display class-specific features
         switch(charClass.toLowerCase()) {
             case 'cleric':
@@ -790,25 +1009,25 @@ document.addEventListener('DOMContentLoaded', function() {
             default:
                 featuresHTML = '<div>No special class features</div>';
         }
-        
+
         featuresElement.innerHTML = featuresHTML;
     }
-    
+
     // Get spells per day based on class and level
     function getSpellsPerDay(character) {
         const level = character.level || 1;
         const charClass = character.character_class || '';
-        
+
         // Simple placeholder - you would replace with actual rules
         if (charClass.toLowerCase() === 'magic-user') {
             return level > 1 ? '2/1' : '1';
         } else if (charClass.toLowerCase() === 'cleric') {
             return level > 1 ? '1' : '0';
         }
-        
+
         return '0';
     }
-    
+
     // Create HTML for thief skills
     function createThiefSkillsHTML(character) {
         const thiefSkills = character.thief_abilities || {};
@@ -824,12 +1043,12 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
         `;
     }
-    
+
     // Update weapons table
     function updateWeapons(weapons) {
         const weaponsList = document.getElementById('weapons-list');
         if (!weaponsList) return;
-        
+
         if (!weapons || weapons.length === 0) {
             weaponsList.innerHTML = `
                 <tr>
@@ -838,7 +1057,7 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             return;
         }
-        
+
         let weaponsHTML = '';
         weapons.forEach(weapon => {
             if (typeof weapon === 'string') {
@@ -863,23 +1082,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
             }
         });
-        
+
         weaponsList.innerHTML = weaponsHTML;
     }
 
     function updateInventory(inventoryItems) {
         if (!equipmentList) return;
-        
+
         // Clear current equipment list
         equipmentList.innerHTML = '';
-        
+
         if (!inventoryItems || inventoryItems.length === 0) {
             const li = document.createElement('li');
             li.textContent = 'No equipment';
             equipmentList.appendChild(li);
             return;
         }
-        
+
         // Add each item to the equipment list
         inventoryItems.forEach(item => {
             const li = document.createElement('li');
@@ -894,26 +1113,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function addJournalEntry(entry) {
         if (!journalContent) return;
-        
+
         if (journalContent.textContent.trim() === 'No journal entries yet.') {
             journalContent.innerHTML = '';
         }
-        
+
         const entryDiv = document.createElement('div');
         entryDiv.classList.add('journal-entry');
-        
+
         const dateDiv = document.createElement('div');
         dateDiv.classList.add('entry-date');
         dateDiv.textContent = entry.date;
-        
+
         const textDiv = document.createElement('div');
         textDiv.classList.add('entry-text');
         textDiv.textContent = entry.text;
-        
+
         entryDiv.appendChild(dateDiv);
         entryDiv.appendChild(textDiv);
         journalContent.appendChild(entryDiv);
-        
+
         // Scroll to bottom
         journalContent.scrollTop = journalContent.scrollHeight;
     }
@@ -955,15 +1174,15 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Load character data from API
-    async function loadCharacterData(id) {
+    async function loadCharacterData(id, retryCount = 0) {
         if (!id) {
             console.error("Invalid character ID:", id);
             return false;
         }
-        
+
         try {
             console.log(`Attempting to load character data for ID: ${id}`);
-            
+
             // First, ensure we have the character in our list of characters
             if (!characters || characters.length === 0) {
                 try {
@@ -989,70 +1208,147 @@ document.addEventListener('DOMContentLoaded', function() {
                     return false;
                 }
             }
-            
+
+            // Create a minimal character object to ensure the UI works even if we can't get data
+            const minimumCharacterData = {
+                id: id,
+                name: cachedCharacter ? cachedCharacter.name : `Character ${id}`,
+                race: cachedCharacter ? cachedCharacter.race : "Unknown",
+                character_class: cachedCharacter ? cachedCharacter.character_class : "Fighter",
+                level: cachedCharacter ? cachedCharacter.level : 1,
+                hit_points: cachedCharacter ? cachedCharacter.hit_points : 10,
+                strength: cachedCharacter ? cachedCharacter.strength : 10,
+                intelligence: cachedCharacter ? cachedCharacter.intelligence : 10,
+                wisdom: cachedCharacter ? cachedCharacter.wisdom : 10,
+                dexterity: cachedCharacter ? cachedCharacter.dexterity : 10,
+                constitution: cachedCharacter ? cachedCharacter.constitution : 10,
+                charisma: cachedCharacter ? cachedCharacter.charisma : 10,
+                armor_class: cachedCharacter ? cachedCharacter.armor_class : 10
+            };
+
             // Make API request to get full character details
             console.log(`Making API request for character ${id}`);
-            const response = await fetch(`/api/characters/${id}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            try {
+                const response = await fetch(`/api/characters/${id}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
 
-            if (!response.ok) {
-                console.warn(`API error: ${response.status} - ${response.statusText}`);
+                if (!response.ok) {
+                    console.warn(`API error: ${response.status} - ${response.statusText}`);
+
+                    // If we failed but have cached data, use that
+                    if (cachedCharacter) {
+                        console.warn("Using cached character data due to API error");
+                        updateCharacterInfo(cachedCharacter);
+                        displayMessage("Using cached character data. Some information may be out of date.", "system");
+                        return true; // Return success, we can use the cached data
+                    }
+
+                    // If this is our first retry, try again
+                    if (retryCount < 2) {
+                        console.log(`Retrying character load (attempt ${retryCount + 1})`);
+                        // Wait a short time before retrying
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return loadCharacterData(id, retryCount + 1);
+                    }
+
+                    // If all retry attempts failed, use minimal data
+                    console.warn("Using minimal character data as fallback");
+                    updateCharacterInfo(minimumCharacterData);
+                    displayMessage("Limited character data available. Some features may not work correctly.", "system");
+                    return true;
+                }
+
+                const character = await response.json();
+                console.log(`API returned character:`, character);
+
+                // Merge with cached data if needed (API might return partial data)
+                const mergedCharacter = {
+                    ...minimumCharacterData,  // Start with minimum data
+                    ...cachedCharacter,       // Add cached data if available
+                    ...character              // Override with fresh data from API
+                };
+
+                // Update UI with character info
+                updateCharacterInfo(mergedCharacter);
+
+                // Also try to load inventory and journal, but don't fail if they error
+                try {
+                    await loadInventory(id);
+                } catch (error) {
+                    console.warn("Error loading inventory, continuing:", error);
+                }
+
+                try {
+                    await loadJournal(id);
+                } catch (error) {
+                    console.warn("Error loading journal, continuing:", error);
+                }
+
+                return true;
+            } catch (apiError) {
+                console.error("API error:", apiError);
                 
-                // If we failed but have cached data, use that
+                // If we have cached data, use it
                 if (cachedCharacter) {
                     console.warn("Using cached character data due to API error");
                     updateCharacterInfo(cachedCharacter);
-                    return true; // Return success, we can use the cached data
+                    displayMessage("Using cached character data due to connection issues.", "system");
+                    return true;
                 }
                 
-                // If API failed and no cached data, clear the character ID
-                throw new Error(`HTTP error! status: ${response.status}`);
+                // If all else fails, use minimal data
+                console.warn("Using minimal character data as fallback");
+                updateCharacterInfo(minimumCharacterData);
+                displayMessage("Limited character data available. Some features may not work correctly.", "system");
+                return true;
             }
-
-            const character = await response.json();
-            console.log(`API returned character:`, character);
-            
-            // Merge with cached data if needed (API might return partial data)
-            const mergedCharacter = { 
-                ...cachedCharacter,  // Include cached data as baseline
-                ...character         // Override with fresh data from API
-            };
-            
-            // Update UI with character info
-            updateCharacterInfo(mergedCharacter);
-
-            // Also try to load inventory and journal, but don't fail if they error
-            try {
-                await loadInventory(id);
-            } catch (error) {
-                console.warn("Error loading inventory, continuing:", error);
-            }
-
-            try {
-                await loadJournal(id);
-            } catch (error) {
-                console.warn("Error loading journal, continuing:", error);
-            }
-
-            return true;
         } catch (error) {
             console.error("Error loading character data:", error);
-            
+
             // Look for cached character data as a fallback
             if (characters && characters.length > 0) {
                 const cachedCharacter = characters.find(c => String(c.id) === String(id));
                 if (cachedCharacter) {
                     console.warn("Using cached character data due to API error");
                     updateCharacterInfo(cachedCharacter);
+                    displayMessage("Using cached character data. Some information may be out of date.", "system");
                     return true; // Still consider this success since we have some data
                 }
             }
+
+            // If this is our first retry, try again
+            if (retryCount < 2) {
+                console.log(`Retrying character load after error (attempt ${retryCount + 1})`);
+                // Wait a short time before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                return loadCharacterData(id, retryCount + 1);
+            }
+
+            // Create minimal character data as last resort
+            const minimumCharacterData = {
+                id: id,
+                name: `Character ${id}`,
+                race: "Unknown",
+                character_class: "Fighter",
+                level: 1,
+                hit_points: 10,
+                strength: 10,
+                intelligence: 10,
+                wisdom: 10,
+                dexterity: 10,
+                constitution: 10,
+                charisma: 10,
+                armor_class: 10
+            };
             
-            return false;
+            console.warn("Using minimal character data as last resort");
+            updateCharacterInfo(minimumCharacterData);
+            displayMessage("Limited emergency character data loaded. Game functionality may be limited.", "system");
+            return true;
         }
     }
 
@@ -1094,10 +1390,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const journalData = await response.json();
-            
+
             // Clear existing entries
             journalContent.innerHTML = '';
-            
+
             // Add each entry
             if (journalData.entries && journalData.entries.length > 0) {
                 journalData.entries.forEach(entry => {
@@ -1106,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 journalContent.textContent = 'No journal entries yet.';
             }
-            
+
             return true;
         } catch (error) {
             console.error("Error loading journal:", error);
@@ -1133,7 +1429,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function trySelectCharacter() {
             // Find the character that matches the name (case insensitive)
-            const character = characters.find(c => 
+            const character = characters.find(c =>
                 c.name.toLowerCase() === name.toLowerCase() ||
                 c.name.toLowerCase().includes(name.toLowerCase())
             );

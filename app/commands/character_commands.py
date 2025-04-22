@@ -271,7 +271,8 @@ class RollStatsCommand(CommandHandler):
 
         # Check if creation state is set correctly (either in context or in store)
         if not (
-            (creation_state == "stats_selection" or stored_state == "stats_selection")
+            (creation_state == "stats_selection" or stored_state == "stats_selection") or 
+            (creation_state == "confirm" or stored_state == "confirm")
         ):
             return CommandResponse(
                 success=False,
@@ -897,12 +898,25 @@ class ConfirmCharacterCommand(CommandHandler):
             if existing_location:
                 existing_location.room_id = 1
                 db.commit()
+                logger.info(f"Updated character {character_id} location to room 1")
             else:
                 # Create new location entry
                 location = CharacterLocation(character_id=character_id, room_id=1)
                 db.add(location)
                 db.commit()
+                logger.info(f"Created new location for character {character_id} in room 1")
 
+            # Double-check if the character location was set correctly
+            check_location = (
+                db.query(CharacterLocation)
+                .filter(CharacterLocation.character_id == character_id)
+                .first()
+            )
+            
+            if not check_location or check_location.room_id != 1:
+                logger.error(f"Failed to verify character {character_id} location in room 1")
+                return False
+                
             return True
         except Exception as e:
             logger.exception(f"Error placing character in starting room: {e}")

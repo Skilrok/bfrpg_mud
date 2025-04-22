@@ -10,6 +10,7 @@ from .basic_commands import *
 from .movement_commands import *
 from .social_commands import *
 from .character_commands import *
+from .look_commands import *
 
 __all__ = [
     "registry", 
@@ -21,3 +22,6 @@ __all__ = [
     "command", 
     "CommandResult"
 ] 
+
+# Import debug command
+import app.commands.debug_command

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..routers.auth import get_current_user, get_current_admin_user
+from ..routers.auth import get_current_admin_user, get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -38,14 +38,22 @@ async def get_exit(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Exit with ID {exit_id} not found",
             )
-        
+
         # Get source and destination room info
-        source_room = db.query(models.Room).filter(models.Room.id == exit.source_room_id).first()
-        destination_room = db.query(models.Room).filter(models.Room.id == exit.destination_room_id).first()
-        
+        source_room = (
+            db.query(models.Room).filter(models.Room.id == exit.source_room_id).first()
+        )
+        destination_room = (
+            db.query(models.Room)
+            .filter(models.Room.id == exit.destination_room_id)
+            .first()
+        )
+
         if not source_room or not destination_room:
-            logger.error(f"Exit {exit_id} has invalid source or destination room references")
-            
+            logger.error(
+                f"Exit {exit_id} has invalid source or destination room references"
+            )
+
         return schemas.ExitDetail(
             id=exit.id,
             direction=exit.direction,
@@ -56,11 +64,17 @@ async def get_exit(
             key_id=exit.key_id,
             source_room_id=exit.source_room_id,
             destination_room_id=exit.destination_room_id,
-            source_room=schemas.RoomBrief.from_orm(source_room) if source_room else None,
-            destination_room=schemas.RoomBrief.from_orm(destination_room) if destination_room else None,
+            source_room=(
+                schemas.RoomBrief.from_orm(source_room) if source_room else None
+            ),
+            destination_room=(
+                schemas.RoomBrief.from_orm(destination_room)
+                if destination_room
+                else None
+            ),
             properties=exit.properties or {},
             created_at=exit.created_at,
-            updated_at=exit.updated_at
+            updated_at=exit.updated_at,
         )
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -89,7 +103,7 @@ async def list_exits(
     try:
         # Build query
         query = db.query(models.Exit)
-        
+
         # Apply filters if provided
         if source_room_id is not None:
             query = query.filter(models.Exit.source_room_id == source_room_id)
@@ -97,10 +111,10 @@ async def list_exits(
             query = query.filter(models.Exit.destination_room_id == destination_room_id)
         if direction is not None:
             query = query.filter(models.Exit.direction == direction)
-            
+
         # Apply pagination
         exits = query.offset(skip).limit(limit).all()
-        
+
         return [schemas.Exit.from_orm(exit) for exit in exits]
     except SQLAlchemyError as e:
         logger.exception(f"Database error listing exits: {str(e)}")
@@ -119,37 +133,49 @@ async def create_exit(
 ):
     """
     Create a new exit between rooms (admin only)
-    
+
     Optionally create a reverse exit as well (bidirectional connection)
     """
     try:
         # Verify that source and destination rooms exist
-        source_room = db.query(models.Room).filter(models.Room.id == exit_create.source_room_id).first()
+        source_room = (
+            db.query(models.Room)
+            .filter(models.Room.id == exit_create.source_room_id)
+            .first()
+        )
         if not source_room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Source room with ID {exit_create.source_room_id} not found",
             )
-            
-        destination_room = db.query(models.Room).filter(models.Room.id == exit_create.destination_room_id).first()
+
+        destination_room = (
+            db.query(models.Room)
+            .filter(models.Room.id == exit_create.destination_room_id)
+            .first()
+        )
         if not destination_room:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Destination room with ID {exit_create.destination_room_id} not found",
             )
-            
+
         # Check if exit already exists
-        existing_exit = db.query(models.Exit).filter(
-            models.Exit.source_room_id == exit_create.source_room_id,
-            models.Exit.direction == exit_create.direction
-        ).first()
-        
+        existing_exit = (
+            db.query(models.Exit)
+            .filter(
+                models.Exit.source_room_id == exit_create.source_room_id,
+                models.Exit.direction == exit_create.direction,
+            )
+            .first()
+        )
+
         if existing_exit:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Exit already exists in direction {exit_create.direction} from room {exit_create.source_room_id}",
             )
-        
+
         # Create exit object
         db_exit = models.Exit(
             source_room_id=exit_create.source_room_id,
@@ -162,25 +188,33 @@ async def create_exit(
             key_id=exit_create.key_id,
             properties=exit_create.properties,
         )
-        
+
         # Save to database
         db.add(db_exit)
-        
+
         # Create reverse exit if requested
         if create_reverse:
             reverse_direction = get_reverse_direction(exit_create.direction)
             if not reverse_direction:
-                logger.warning(f"Could not determine reverse direction for '{exit_create.direction}'")
-                
+                logger.warning(
+                    f"Could not determine reverse direction for '{exit_create.direction}'"
+                )
+
             else:
                 # Check if reverse exit already exists
-                existing_reverse = db.query(models.Exit).filter(
-                    models.Exit.source_room_id == exit_create.destination_room_id,
-                    models.Exit.direction == reverse_direction
-                ).first()
-                
+                existing_reverse = (
+                    db.query(models.Exit)
+                    .filter(
+                        models.Exit.source_room_id == exit_create.destination_room_id,
+                        models.Exit.direction == reverse_direction,
+                    )
+                    .first()
+                )
+
                 if existing_reverse:
-                    logger.warning(f"Reverse exit already exists in direction {reverse_direction} from room {exit_create.destination_room_id}")
+                    logger.warning(
+                        f"Reverse exit already exists in direction {reverse_direction} from room {exit_create.destination_room_id}"
+                    )
                 else:
                     # Create reverse exit with similar properties
                     reverse_exit = models.Exit(
@@ -195,10 +229,10 @@ async def create_exit(
                         properties=exit_create.properties,
                     )
                     db.add(reverse_exit)
-        
+
         db.commit()
         db.refresh(db_exit)
-        
+
         return schemas.Exit.from_orm(db_exit)
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -230,7 +264,7 @@ async def update_exit(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Exit with ID {exit_id} not found",
             )
-        
+
         # Update fields if provided (handle optional fields properly)
         if exit_update.direction is not None:
             db_exit.direction = exit_update.direction
@@ -246,7 +280,11 @@ async def update_exit(
             db_exit.key_id = exit_update.key_id
         if exit_update.destination_room_id is not None:
             # Verify that destination room exists
-            destination_room = db.query(models.Room).filter(models.Room.id == exit_update.destination_room_id).first()
+            destination_room = (
+                db.query(models.Room)
+                .filter(models.Room.id == exit_update.destination_room_id)
+                .first()
+            )
             if not destination_room:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -255,11 +293,11 @@ async def update_exit(
             db_exit.destination_room_id = exit_update.destination_room_id
         if exit_update.properties is not None:
             db_exit.properties = exit_update.properties
-            
+
         # Save changes
         db.commit()
         db.refresh(db_exit)
-        
+
         return schemas.Exit.from_orm(db_exit)
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -282,7 +320,7 @@ async def delete_exit(
 ):
     """
     Delete an exit (admin only)
-    
+
     Optionally delete the reverse exit as well
     """
     try:
@@ -293,25 +331,31 @@ async def delete_exit(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Exit with ID {exit_id} not found",
             )
-        
+
         # If delete_reverse is true, try to find and delete the reverse exit
         if delete_reverse:
             reverse_direction = get_reverse_direction(db_exit.direction)
             if reverse_direction:
-                reverse_exit = db.query(models.Exit).filter(
-                    models.Exit.source_room_id == db_exit.destination_room_id,
-                    models.Exit.destination_room_id == db_exit.source_room_id,
-                    models.Exit.direction == reverse_direction
-                ).first()
-                
+                reverse_exit = (
+                    db.query(models.Exit)
+                    .filter(
+                        models.Exit.source_room_id == db_exit.destination_room_id,
+                        models.Exit.destination_room_id == db_exit.source_room_id,
+                        models.Exit.direction == reverse_direction,
+                    )
+                    .first()
+                )
+
                 if reverse_exit:
                     db.delete(reverse_exit)
-                    logger.info(f"Deleted reverse exit {reverse_exit.id} ({reverse_direction}) from room {reverse_exit.source_room_id}")
-        
+                    logger.info(
+                        f"Deleted reverse exit {reverse_exit.id} ({reverse_direction}) from room {reverse_exit.source_room_id}"
+                    )
+
         # Delete exit
         db.delete(db_exit)
         db.commit()
-        
+
         return None
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -341,7 +385,7 @@ def get_reverse_direction(direction: str) -> Optional[str]:
         "up": "down",
         "down": "up",
         "in": "out",
-        "out": "in"
+        "out": "in",
     }
-    
-    return direction_pairs.get(direction.lower()) 
+
+    return direction_pairs.get(direction.lower())

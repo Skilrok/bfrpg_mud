@@ -1,12 +1,15 @@
+import os
+from datetime import datetime, timedelta
+
 import pytest
 from fastapi.testclient import TestClient
-from datetime import datetime, timedelta
+
 from app import models
-import os
 from app.models.hireling import HirelingType
 
 # Make sure tests run in test environment
 os.environ["TESTING"] = "True"
+
 
 def test_create_hireling(client, mock_current_user, test_db, test_user):
     """Test creating a new hireling"""
@@ -18,8 +21,8 @@ def test_create_hireling(client, mock_current_user, test_db, test_user):
             "level": 1,
             "wage": 10,
             "loyalty": 50.0,
-            "hireling_type": "porter"
-        }
+            "hireling_type": "porter",
+        },
     )
     assert response.status_code == 200
     data = response.json()
@@ -27,37 +30,39 @@ def test_create_hireling(client, mock_current_user, test_db, test_user):
     assert data["character_class"] == "fighter"
     assert data["loyalty"] == 50.0
 
+
 def test_hire_hireling(client, mock_current_user, test_db, test_user, test_character):
     """Test hiring a hireling for a character"""
     # Print debug info about the character
     print(f"Test character ID: {test_character.id}, User ID: {test_user.id}")
-    print(f"Character details: race={test_character.race}, class={test_character.character_class}")
-    
+    print(
+        f"Character details: race={test_character.race}, class={test_character.character_class}"
+    )
+
     # Create a hireling directly in the database
     hireling = models.Hireling(
         name="Test Hireling",
         character_class="fighter",
         user_id=test_user.id,
         is_available=True,
-        hireling_type=HirelingType.PORTER
+        hireling_type=HirelingType.PORTER,
     )
     test_db.add(hireling)
     test_db.commit()
     test_db.refresh(hireling)
-    
+
     print(f"Created hireling with ID: {hireling.id}, User ID: {hireling.user_id}")
 
     # Hire the hireling
-    response = client.put(
-        f"/api/hirelings/{hireling.id}/hire/{test_character.id}"
-    )
+    response = client.put(f"/api/hirelings/{hireling.id}/hire/{test_character.id}")
     print(f"Response status: {response.status_code}")
     print(f"Response content: {response.content}")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["master_id"] == test_character.id
     assert data["is_available"] == False
+
 
 def test_pay_hireling(client, mock_current_user, test_db, test_user):
     """Test paying a hireling"""
@@ -69,20 +74,19 @@ def test_pay_hireling(client, mock_current_user, test_db, test_user):
         last_payment_date=datetime.utcnow() - timedelta(days=5),
         days_unpaid=5,
         is_available=True,
-        hireling_type=HirelingType.MERCENARY
+        hireling_type=HirelingType.MERCENARY,
     )
     test_db.add(hireling)
     test_db.commit()
     test_db.refresh(hireling)
 
     # Pay the hireling
-    response = client.put(
-        f"/api/hirelings/{hireling.id}/pay?days=7"
-    )
+    response = client.put(f"/api/hirelings/{hireling.id}/pay?days=7")
     assert response.status_code == 200
     data = response.json()
     assert data["days_unpaid"] == 0
     assert data["loyalty"] > 50.0  # Should have increased from base 50.0
+
 
 def test_reward_hireling(client, mock_current_user, test_db, test_user):
     """Test rewarding a hireling"""
@@ -92,19 +96,18 @@ def test_reward_hireling(client, mock_current_user, test_db, test_user):
         character_class="fighter",
         user_id=test_user.id,
         is_available=True,
-        hireling_type=HirelingType.GUIDE
+        hireling_type=HirelingType.GUIDE,
     )
     test_db.add(hireling)
     test_db.commit()
     test_db.refresh(hireling)
 
     # Reward the hireling
-    response = client.put(
-        f"/api/hirelings/{hireling.id}/reward?amount=50"
-    )
+    response = client.put(f"/api/hirelings/{hireling.id}/reward?amount=50")
     assert response.status_code == 200
     data = response.json()
     assert data["loyalty"] > 50.0  # Should have increased from base 50.0
+
 
 def test_loyalty_decrease_unpaid(client, mock_current_user, test_db, test_user):
     """Test hireling loyalty decreases when unpaid"""
@@ -116,16 +119,14 @@ def test_loyalty_decrease_unpaid(client, mock_current_user, test_db, test_user):
         last_payment_date=datetime.utcnow() - timedelta(days=10),
         days_unpaid=0,
         is_available=True,
-        hireling_type=HirelingType.HEALER
+        hireling_type=HirelingType.HEALER,
     )
     test_db.add(hireling)
     test_db.commit()
     test_db.refresh(hireling)
 
     # Get the hireling to trigger loyalty update
-    response = client.get(
-        f"/api/hirelings/{hireling.id}"
-    )
+    response = client.get(f"/api/hirelings/{hireling.id}")
     assert response.status_code == 200
     data = response.json()
     assert data["loyalty"] < 50.0  # Should have decreased from base 50.0

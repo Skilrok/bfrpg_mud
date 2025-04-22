@@ -6,11 +6,11 @@ from sqlalchemy import (
     Column,
     DateTime,
     Enum,
+    Float,
     ForeignKey,
     Integer,
     String,
     Text,
-    Float,
 )
 from sqlalchemy.orm import relationship
 

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..database import get_db
-from ..routers.auth import get_current_user, get_current_admin_user
+from ..routers.auth import get_current_admin_user, get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,11 @@ async def get_room(
         # Get exits if requested
         exits = []
         if include_exits:
-            exits = db.query(models.Exit).filter(models.Exit.source_room_id == room_id).all()
+            exits = (
+                db.query(models.Exit)
+                .filter(models.Exit.source_room_id == room_id)
+                .all()
+            )
             exits = [schemas.Exit.from_orm(exit) for exit in exits]
 
         # Get items if requested
@@ -81,7 +85,7 @@ async def get_room(
             items=items,
             npcs=npcs,
             created_at=room.created_at,
-            updated_at=room.updated_at
+            updated_at=room.updated_at,
         )
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -143,7 +147,11 @@ async def create_room(
     try:
         # If area_id is provided, verify that the area exists
         if room_create.area_id:
-            area = db.query(models.Area).filter(models.Area.id == room_create.area_id).first()
+            area = (
+                db.query(models.Area)
+                .filter(models.Area.id == room_create.area_id)
+                .first()
+            )
             if not area:
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
@@ -205,7 +213,11 @@ async def update_room(
         if room_update.area_id is not None:
             # Verify that area exists
             if room_update.area_id:
-                area = db.query(models.Area).filter(models.Area.id == room_update.area_id).first()
+                area = (
+                    db.query(models.Area)
+                    .filter(models.Area.id == room_update.area_id)
+                    .first()
+                )
                 if not area:
                     raise HTTPException(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -245,7 +257,7 @@ async def delete_room(
 ):
     """
     Delete a room (admin only)
-    
+
     By default, deletion will fail if the room has associated exits, items, or NPCs.
     If force=True, all associated entities will be deleted as well.
     """
@@ -261,7 +273,11 @@ async def delete_room(
         # Check for dependencies if not force deleting
         if not force:
             # Check for outgoing exits
-            outgoing_exits = db.query(models.Exit).filter(models.Exit.source_room_id == room_id).count()
+            outgoing_exits = (
+                db.query(models.Exit)
+                .filter(models.Exit.source_room_id == room_id)
+                .count()
+            )
             if outgoing_exits > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -269,7 +285,11 @@ async def delete_room(
                 )
 
             # Check for incoming exits
-            incoming_exits = db.query(models.Exit).filter(models.Exit.destination_room_id == room_id).count()
+            incoming_exits = (
+                db.query(models.Exit)
+                .filter(models.Exit.destination_room_id == room_id)
+                .count()
+            )
             if incoming_exits > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -293,7 +313,11 @@ async def delete_room(
                 )
 
             # Check for players in the room
-            characters = db.query(models.Character).filter(models.Character.room_id == room_id).count()
+            characters = (
+                db.query(models.Character)
+                .filter(models.Character.room_id == room_id)
+                .count()
+            )
             if characters > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -301,30 +325,44 @@ async def delete_room(
                 )
         else:
             # Force delete associated entities
-            logger.warning(f"Force deleting room {room_id} with all associated entities")
-            
+            logger.warning(
+                f"Force deleting room {room_id} with all associated entities"
+            )
+
             # Delete outgoing exits
-            outgoing_exits = db.query(models.Exit).filter(models.Exit.source_room_id == room_id).all()
+            outgoing_exits = (
+                db.query(models.Exit)
+                .filter(models.Exit.source_room_id == room_id)
+                .all()
+            )
             for exit in outgoing_exits:
                 db.delete(exit)
-                
+
             # Delete incoming exits
-            incoming_exits = db.query(models.Exit).filter(models.Exit.destination_room_id == room_id).all()
+            incoming_exits = (
+                db.query(models.Exit)
+                .filter(models.Exit.destination_room_id == room_id)
+                .all()
+            )
             for exit in incoming_exits:
                 db.delete(exit)
-                
+
             # Delete items
             items = db.query(models.Item).filter(models.Item.room_id == room_id).all()
             for item in items:
                 db.delete(item)
-                
+
             # Delete NPCs
             npcs = db.query(models.NPC).filter(models.NPC.room_id == room_id).all()
             for npc in npcs:
                 db.delete(npc)
-                
+
             # Check for players in the room (can't force delete if characters present)
-            characters = db.query(models.Character).filter(models.Character.room_id == room_id).count()
+            characters = (
+                db.query(models.Character)
+                .filter(models.Character.room_id == room_id)
+                .count()
+            )
             if characters > 0:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -334,7 +372,7 @@ async def delete_room(
         # Delete room
         db.delete(db_room)
         db.commit()
-        
+
         return None
     except HTTPException:
         # Re-raise HTTP exceptions
@@ -366,10 +404,12 @@ async def get_room_exits(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Room with ID {room_id} not found",
             )
-        
+
         # Query exits
-        exits_query = db.query(models.Exit).filter(models.Exit.source_room_id == room_id)
-        
+        exits_query = db.query(models.Exit).filter(
+            models.Exit.source_room_id == room_id
+        )
+
         # Filter hidden exits if not admin and not requested
         is_admin = False
         try:
@@ -377,17 +417,21 @@ async def get_room_exits(
             is_admin = True
         except:
             pass
-            
+
         if not include_hidden and not is_admin:
             exits_query = exits_query.filter(models.Exit.is_hidden == False)
-            
+
         exits = exits_query.all()
-        
+
         # Get destination room info for each exit
         result = []
         for exit in exits:
-            destination_room = db.query(models.Room).filter(models.Room.id == exit.destination_room_id).first()
-            
+            destination_room = (
+                db.query(models.Room)
+                .filter(models.Room.id == exit.destination_room_id)
+                .first()
+            )
+
             exit_detail = schemas.ExitDetail(
                 id=exit.id,
                 direction=exit.direction,
@@ -398,19 +442,25 @@ async def get_room_exits(
                 key_id=exit.key_id,
                 source_room_id=exit.source_room_id,
                 destination_room_id=exit.destination_room_id,
-                destination_room=schemas.RoomBrief.from_orm(destination_room) if destination_room else None,
+                destination_room=(
+                    schemas.RoomBrief.from_orm(destination_room)
+                    if destination_room
+                    else None
+                ),
                 properties=exit.properties or {},
                 created_at=exit.created_at,
-                updated_at=exit.updated_at
+                updated_at=exit.updated_at,
             )
             result.append(exit_detail)
-            
+
         return result
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except SQLAlchemyError as e:
-        logger.exception(f"Database error retrieving exits for room {room_id}: {str(e)}")
+        logger.exception(
+            f"Database error retrieving exits for room {room_id}: {str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error while retrieving room exits",
@@ -435,10 +485,10 @@ async def get_room_items(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Room with ID {room_id} not found",
             )
-        
+
         # Query items
         items_query = db.query(models.Item).filter(models.Item.room_id == room_id)
-        
+
         # Filter hidden items if not admin and not requested
         is_admin = False
         try:
@@ -446,19 +496,21 @@ async def get_room_items(
             is_admin = True
         except:
             pass
-            
+
         if not include_hidden and not is_admin:
             items_query = items_query.filter(models.Item.is_hidden == False)
-            
+
         items = items_query.all()
-        
+
         return [schemas.Item.from_orm(item) for item in items]
     except HTTPException:
         # Re-raise HTTP exceptions
         raise
     except SQLAlchemyError as e:
-        logger.exception(f"Database error retrieving items for room {room_id}: {str(e)}")
+        logger.exception(
+            f"Database error retrieving items for room {room_id}: {str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Database error while retrieving room items",
-        ) 
+        )

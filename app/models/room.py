@@ -1,11 +1,24 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, Enum, ForeignKey, Integer, String, Text, DateTime
+from sqlalchemy import (
+    Boolean,
+    Column,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    inspect,
+)
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
+from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.ext.hybrid import hybrid_property
 
 from app.models.base import JSON_TYPE, Base
+from app.database import engine
 
 
 class RoomType(str, enum.Enum):
@@ -37,9 +50,6 @@ class Room(Base):
     y = Column(Integer, default=0)
     z = Column(Integer, default=0)  # Level/floor
 
-    # Combined coordinates as JSON for 3D positioning
-    coordinates = Column(JSON_TYPE, default=dict)  # {"x": 0, "y": 0, "z": 0} or other coordinate systems
-
     # Area grouping (optional - for organizing rooms)
     area_id = Column(Integer, ForeignKey("areas.id"), nullable=True)
 
@@ -51,7 +61,7 @@ class Room(Base):
     properties = Column(
         JSON_TYPE, default=dict
     )  # Flexible field for room-specific properties
-    
+
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -61,10 +71,25 @@ class Room(Base):
     items = relationship("RoomItem", back_populates="room")
     npcs = relationship("RoomNPC", back_populates="room")
     characters = relationship("CharacterLocation", back_populates="room")
-    
+
     # Exit relationships
-    outgoing_exits = relationship("Exit", foreign_keys="Exit.source_room_id", back_populates="source_room", cascade="all, delete-orphan")
-    incoming_exits = relationship("Exit", foreign_keys="Exit.destination_room_id", back_populates="destination_room", cascade="all, delete-orphan")
+    outgoing_exits = relationship(
+        "Exit",
+        foreign_keys="Exit.source_room_id",
+        back_populates="source_room",
+        cascade="all, delete-orphan",
+    )
+    incoming_exits = relationship(
+        "Exit",
+        foreign_keys="Exit.destination_room_id",
+        back_populates="destination_room",
+        cascade="all, delete-orphan",
+    )
+
+    # Property to get coordinates as a dict from individual fields
+    @property
+    def coordinates(self):
+        return {"x": self.x, "y": self.y, "z": self.z}
 
 
 class Area(Base):
@@ -76,10 +101,50 @@ class Area(Base):
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
     level_range = Column(String, nullable=True)  # e.g. "1-5"
-    is_dungeon = Column(Boolean, default=True)
-    is_hidden = Column(Boolean, default=False)  # Hidden from map/listings
-    properties = Column(JSON_TYPE, default=dict)
     
+    # The following columns may not exist in older databases, make them safe
+    @declared_attr
+    def is_dungeon(cls):
+        try:
+            insp = inspect(engine)
+            columns = [c['name'] for c in insp.get_columns('areas')]
+            if 'is_dungeon' in columns:
+                return Column(Boolean, default=True)
+            else:
+                return None
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error checking is_dungeon column: {e}")
+            return Column(Boolean, default=True, nullable=True)
+    
+    @declared_attr
+    def is_hidden(cls):
+        try:
+            insp = inspect(engine)
+            columns = [c['name'] for c in insp.get_columns('areas')]
+            if 'is_hidden' in columns:
+                return Column(Boolean, default=False)
+            else:
+                return None
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error checking is_hidden column: {e}")
+            return Column(Boolean, default=False, nullable=True)
+    
+    @declared_attr
+    def properties(cls):
+        try:
+            insp = inspect(engine)
+            columns = [c['name'] for c in insp.get_columns('areas')]
+            if 'properties' in columns:
+                return Column(JSON_TYPE, default=dict)
+            else:
+                return None
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(f"Error checking properties column: {e}")
+            return Column(JSON_TYPE, default=dict, nullable=True)
+
     # Timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

@@ -1,7 +1,9 @@
+from datetime import datetime
+from typing import List
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import List
-from datetime import datetime
+
 from .. import models, schemas
 from ..database import get_db
 from . import auth
@@ -31,14 +33,13 @@ async def create_hireling(
         db.add(db_hireling)
         db.commit()
         db.refresh(db_hireling)
-        
+
         # Convert to Pydantic model
         return schemas.Hireling.from_orm(db_hireling)
     except Exception as e:
         db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to create hireling: {str(e)}"
+            status_code=500, detail=f"Failed to create hireling: {str(e)}"
         )
 
 
@@ -61,19 +62,23 @@ async def get_hirelings(
         # Update payment status for all hirelings
         for hireling in hirelings:
             if hireling.last_payment_date:
-                days_since_payment = (datetime.utcnow() - hireling.last_payment_date).days
+                days_since_payment = (
+                    datetime.utcnow() - hireling.last_payment_date
+                ).days
                 if days_since_payment > 0:
                     hireling.days_unpaid = days_since_payment
                     # Loyalty decreases by 5 points per unpaid day
                     hireling.update_loyalty(-5.0 * days_since_payment)
-        
+
         db.commit()
-        
+
         # Convert to Pydantic models
         return [schemas.Hireling.from_orm(h) for h in hirelings]
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error retrieving hirelings: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving hirelings: {str(e)}"
+        )
 
 
 @router.get("/{hireling_id}", response_model=schemas.Hireling)
@@ -108,7 +113,9 @@ async def get_hireling(
         return schemas.Hireling.from_orm(hireling)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error retrieving hireling: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error retrieving hireling: {str(e)}"
+        )
 
 
 @router.put("/{hireling_id}/hire/{character_id}", response_model=schemas.Hireling)
@@ -120,8 +127,10 @@ async def hire_hireling(
 ):
     try:
         # Debug log the input values to help diagnose issues
-        print(f"Hiring hireling: hireling_id={hireling_id}, character_id={character_id}, user_id={current_user.id}")
-        
+        print(
+            f"Hiring hireling: hireling_id={hireling_id}, character_id={character_id}, user_id={current_user.id}"
+        )
+
         # Verify the character belongs to the user
         character = (
             db.query(models.Character)
@@ -150,7 +159,7 @@ async def hire_hireling(
         hireling.is_available = False
         db.commit()
         db.refresh(hireling)
-        
+
         # Return a Pydantic model
         result = schemas.Hireling.from_orm(hireling)
         return result
@@ -158,6 +167,7 @@ async def hire_hireling(
         db.rollback()
         print(f"Error in hire_hireling: {str(e)}")
         import traceback
+
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error hiring hireling: {str(e)}")
 
@@ -184,12 +194,14 @@ async def dismiss_hireling(
         hireling.is_available = True
         db.commit()
         db.refresh(hireling)
-        
+
         # Return a Pydantic model
         return schemas.Hireling.from_orm(hireling)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error dismissing hireling: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error dismissing hireling: {str(e)}"
+        )
 
 
 @router.put("/{hireling_id}/pay", response_model=schemas.Hireling)
@@ -221,7 +233,7 @@ async def pay_hireling(
 
         db.commit()
         db.refresh(hireling)
-        
+
         # Return a Pydantic model
         return schemas.Hireling.from_orm(hireling)
     except Exception as e:
@@ -254,9 +266,11 @@ async def reward_hireling(
 
         db.commit()
         db.refresh(hireling)
-        
+
         # Return a Pydantic model
         return schemas.Hireling.from_orm(hireling)
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Error rewarding hireling: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error rewarding hireling: {str(e)}"
+        )

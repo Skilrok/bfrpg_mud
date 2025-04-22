@@ -5,7 +5,7 @@ This module defines the Pydantic schemas for exit data validation and serializat
 """
 
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,6 +14,7 @@ from app.schemas.room import RoomBrief
 
 class ExitBase(BaseModel):
     """Base schema for exit data"""
+
     direction: str
     name: Optional[str] = None
     description: Optional[str] = None
@@ -28,12 +29,14 @@ class ExitBase(BaseModel):
 
 class ExitCreate(ExitBase):
     """Schema for exit creation"""
+
     source_room_id: int
     destination_room_id: int
 
 
 class ExitUpdate(BaseModel):
     """Schema for exit update (all fields optional)"""
+
     direction: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
@@ -49,6 +52,7 @@ class ExitUpdate(BaseModel):
 
 class Exit(ExitBase):
     """Schema for exit responses"""
+
     id: int
     source_room_id: int
     destination_room_id: int
@@ -61,8 +65,9 @@ class Exit(ExitBase):
 
 class ExitDetail(Exit):
     """Detailed exit information including source and destination rooms"""
+
     source_room: Optional[RoomBrief] = None
     destination_room: Optional[RoomBrief] = None
 
     class Config:
-        from_attributes = True 
+        from_attributes = True

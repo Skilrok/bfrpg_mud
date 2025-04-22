@@ -1,5 +1,6 @@
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr, validator
+from datetime import datetime
 
 class UserBase(BaseModel):
     """Base user schema with common attributes"""
@@ -47,6 +48,23 @@ class UserInDB(User):
         from_attributes = True
         orm_mode = True  # This is needed for compatibility with older Pydantic
 
+class UserUpdate(BaseModel):
+    """Schema for updating user information"""
+    username: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    password_confirm: Optional[str] = None
+    
+    @validator('password_confirm')
+    def passwords_match(cls, v, values, **kwargs):
+        if v is not None and 'password' in values and v != values['password']:
+            raise ValueError('passwords do not match')
+        return v
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True  # This is needed for compatibility with older Pydantic
+
 class PasswordResetRequest(BaseModel):
     """Schema for requesting a password reset"""
     email: EmailStr
@@ -66,6 +84,16 @@ class PasswordReset(BaseModel):
         if 'new_password' in values and v != values['new_password']:
             raise ValueError('passwords do not match')
         return v
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True  # This is needed for compatibility with older Pydantic
+
+class UserDetail(User):
+    """Schema for detailed user information including admin status and timestamps"""
+    is_admin: bool
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True

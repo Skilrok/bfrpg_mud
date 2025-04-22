@@ -132,4 +132,4 @@ Room state changes will be persisted using:
 - Content Pipeline Integration: 2-3 days
 - Testing & Validation: 1-2 days
 
-Total estimated time: 2-3 weeks 
+Total estimated time: 2-3 weeks
