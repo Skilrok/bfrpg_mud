@@ -303,6 +303,12 @@ class WebSocketManager:
                             )
                             continue
                         
+                        # Get character ID from the data payload if available
+                        cmd_character_id = data.get("character_id")
+                        if cmd_character_id:
+                            character_id = cmd_character_id
+                            logger.info(f"Using character ID from command payload: {character_id}")
+                        
                         # Refresh character object on each command
                         if character_id:
                             character = (

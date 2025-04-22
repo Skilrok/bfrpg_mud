@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Log command information if available
                     if (data.command) {
                         console.log("Command processed:", data.command);
-                        
+
                         // Enhanced debug for look command
                         if (data.command.name === "look" || data.command.name === "l") {
                             console.log("LOOK COMMAND RESPONSE:", {
@@ -676,7 +676,7 @@ document.addEventListener('DOMContentLoaded', function() {
                                 message: data.message,
                                 data: data.data || {}
                             });
-                            
+
                             // Special handling for look command responses
                             if (data.success && data.data) {
                                 // Log room details if available
@@ -794,9 +794,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // If using WebSockets and connected, send via WS
         if (useWebSocket && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+            // Make sure we have the latest character ID
+            const currentCharId = localStorage.getItem('characterId') || characterId;
+            
+            // Log for debugging purposes
+            console.log(`Sending command via WebSocket. Character ID: ${currentCharId}, Command: ${command}`);
+            
             wsConnection.send(JSON.stringify({
-                command: command
+                command: command,
+                character_id: currentCharId  // Always include character_id with every command
             }));
+            
             // Clear input after sending
             commandInput.value = '';
             return;
@@ -1193,23 +1201,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Scroll to bottom
         journalContent.scrollTop = journalContent.scrollHeight;
-        
+
         // Save to local storage as a backup
         saveJournalEntryToLocalStorage(entryObject);
     }
-    
+
     // Make addJournalEntry function available globally for the inline script
     window.addJournalEntry = addJournalEntry;
 
     // Save journal entry to local storage for the current character
     function saveJournalEntryToLocalStorage(entry) {
         if (!characterId) return;
-        
+
         // Get existing journal entries for this character
         const journalKey = `journal_${characterId}`;
         const storedEntries = localStorage.getItem(journalKey);
         let entries = [];
-        
+
         if (storedEntries) {
             try {
                 entries = JSON.parse(storedEntries);
@@ -1218,10 +1226,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 entries = [];
             }
         }
-        
+
         // Add new entry
         entries.push(entry);
-        
+
         // Save back to local storage
         localStorage.setItem(journalKey, JSON.stringify(entries));
     }
@@ -1472,7 +1480,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const journalKey = `journal_${characterId}`;
             const storedEntries = localStorage.getItem(journalKey);
             let localEntries = [];
-            
+
             if (storedEntries) {
                 try {
                     localEntries = JSON.parse(storedEntries);
@@ -1481,7 +1489,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error("Failed to parse stored journal entries", e);
                 }
             }
-            
+
             // Then try to get from API
             const response = await fetch(`/api/characters/${characterId}/journal`, {
                 method: 'GET',
@@ -1492,7 +1500,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Clear existing entries
             journalContent.innerHTML = '';
-            
+
             if (response.ok) {
                 const journalData = await response.json();
                 // If we have entries from the API, add them
@@ -1501,7 +1509,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const combinedEntries = [...journalData.entries, ...localEntries];
                     // Sort by date if needed
                     combinedEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-                    
+
                     // Display entries
                     combinedEntries.forEach(entry => {
                         addJournalEntryToUI(entry);
@@ -1530,16 +1538,16 @@ document.addEventListener('DOMContentLoaded', function() {
             return true;
         } catch (error) {
             console.error("Error loading journal:", error);
-            
+
             // Try to use local entries as fallback
             const journalKey = `journal_${characterId}`;
             const storedEntries = localStorage.getItem(journalKey);
-            
+
             if (storedEntries) {
                 try {
                     const localEntries = JSON.parse(storedEntries);
                     journalContent.innerHTML = '';
-                    
+
                     if (localEntries.length > 0) {
                         localEntries.forEach(entry => {
                             addJournalEntryToUI(entry);
@@ -1550,12 +1558,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error("Failed to parse stored journal entries", e);
                 }
             }
-            
+
             journalContent.textContent = 'No journal entries yet.';
             return false;
         }
     }
-    
+
     // Function to add a journal entry to the UI without adding it to storage
     function addJournalEntryToUI(entry) {
         if (!journalContent) return;
@@ -1628,16 +1636,16 @@ async function saveJournalEntryToAPI(characterId, text) {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 character_id: characterId,
                 text: text
             })
         });
-        
+
         if (!response.ok) {
             throw new Error('Failed to save journal entry to server');
         }
-        
+
         return await response.json();
     } catch (error) {
         console.error('Error saving journal entry to API:', error);

@@ -33,19 +33,41 @@ class LookCommand(CommandHandler):
                 success=False, message="Error: Database unavailable", errors=["No database"]
             )
         
-        # Get character ID
+        # Get character ID - log more details to diagnose issue
         character_id = None
         if ctx.character:
             character_id = ctx.character.id
+            logger.info(f"Using character ID from ctx.character: {character_id}")
         else:
             character_id = ctx.data.get("character_id")
+            logger.info(f"Using character ID from ctx.data: {character_id}")
             
         if not character_id:
+            logger.error("No character ID found in ctx.character or ctx.data!")
             return CommandResponse(
                 success=False,
                 message="You need an active character to look around.",
                 errors=["No active character"],
             )
+        
+        # Try to verify the character exists in the database
+        try:
+            char_exists = db.execute(
+                text("SELECT id FROM characters WHERE id = :char_id"),
+                {"char_id": character_id}
+            ).fetchone()
+            
+            if not char_exists:
+                logger.error(f"Character with ID {character_id} does not exist in the database!")
+                return CommandResponse(
+                    success=False,
+                    message="Character not found. Please select a valid character.",
+                    errors=["Character not found"],
+                )
+            logger.info(f"Verified character {character_id} exists in database")
+        except Exception as e:
+            logger.error(f"Error verifying character existence: {str(e)}")
+            # Continue anyway - this is just an extra check
         
         logger.info(f"Looking at room for character {character_id}")
         
