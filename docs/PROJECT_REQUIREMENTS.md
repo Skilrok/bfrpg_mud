@@ -25,6 +25,8 @@ This project seeks to revive the classic feel of text-based dungeon exploration 
 ### Rules System
 - Based on **Basic Fantasy RPG (BFRPG)** core rules only
 - Strict rule adherence for combat, spells, saves, etc.
+- All armor class calculations will use the **ascending armor class** system
+- All items and combat calculations must be compliant with ascending AC rules
 
 ### Game Flow
 - **Real-time exploration**

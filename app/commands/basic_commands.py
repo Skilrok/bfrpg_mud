@@ -483,12 +483,12 @@ class EquipCommand(CommandHandler):
                                     and slot_db_item.item_type.value == "shield"
                                 ):
                                     # Shield adds to AC
-                                    base_ac -= ac_bonus  # In BFRPG, lower AC is better
+                                    base_ac += ac_bonus  # In ascending AC system, higher is better
 
                     # Apply dexterity modifier
                     character.armor_class = (
-                        base_ac - dex_mod
-                    )  # Lower is better in BFRPG
+                        base_ac + dex_mod
+                    )  # Higher is better in ascending AC system
 
                 # Use a direct SQL update to avoid session conflicts and ensure both equipment and inventory are updated together
                 query = text(
@@ -708,12 +708,12 @@ class UnequipCommand(CommandHandler):
                                     and slot_db_item.item_type.value == "shield"
                                 ):
                                     # Shield adds to AC
-                                    base_ac -= ac_bonus  # In BFRPG, lower AC is better
+                                    base_ac += ac_bonus  # In ascending AC system, higher is better
 
                     # Apply dexterity modifier
                     character.armor_class = (
-                        base_ac - dex_mod
-                    )  # Lower is better in BFRPG
+                        base_ac + dex_mod
+                    )  # Higher is better in ascending AC system
 
                 # Use a direct SQL update to avoid session conflicts and ensure both equipment and inventory are updated together
                 query = text(

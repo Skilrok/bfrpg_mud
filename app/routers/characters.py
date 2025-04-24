@@ -916,10 +916,10 @@ def equip_starting_items(character: models.Character):
                             base_ac = ac_bonus
                         elif slot == "off_hand" and db_item.item_type.value == "shield":
                             # Shield adds to AC
-                            base_ac -= ac_bonus  # In BFRPG, lower AC is better
+                            base_ac += ac_bonus  # In ascending AC system, higher is better
 
             # Apply dexterity modifier
-            character.armor_class = base_ac - dex_mod  # Lower is better in BFRPG
+            character.armor_class = base_ac + dex_mod  # Higher is better in ascending AC system
 
             logger.info(
                 f"Equipped slots: {equipped_slots} for character {character.id}"
