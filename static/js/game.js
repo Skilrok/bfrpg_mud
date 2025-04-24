@@ -32,6 +32,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const partyMembers = document.getElementById('party-members');
     const themeToggleBtn = document.getElementById('theme-toggle');
 
+    // Command input handling
+    if (commandInput) {
+        commandInput.addEventListener('keydown', function(event) {
+            if (event.key === 'Enter') {
+                const command = this.value.trim();
+                if (command) {
+                    sendCommand(command);
+                }
+                event.preventDefault();
+            }
+        });
+    }
+
     // Authentication state
     const token = localStorage.getItem('token');
     const username = localStorage.getItem('username');
