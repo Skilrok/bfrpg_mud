@@ -1,5 +1,6 @@
 /* Game UI Styles */
 :root {
+    /* Dark Theme Variables (Default) */
     --terminal-green: #0f0;
     --terminal-bg: #000;
     --terminal-font: 'Courier New', monospace;
@@ -7,6 +8,28 @@
     --error-color: #f55;
     --system-color: #5ff;
     --command-color: #ff5;
+    --border-color: #0f0;
+    --text-color: #0f0;
+    --section-bg: rgba(0, 20, 0, 0.3);
+    --hover-bg: rgba(0, 60, 0, 0.3);
+    --header-bg: #000;
+    --input-bg: rgba(0, 10, 0, 0.95);
+}
+
+/* Light Theme Variables */
+body.light {
+    --terminal-green: #007700;
+    --terminal-bg: #f5f5f5;
+    --glow-color: rgba(0, 119, 0, 0.3);
+    --error-color: #d00;
+    --system-color: #007;
+    --command-color: #770;
+    --border-color: #007700;
+    --text-color: #222;
+    --section-bg: rgba(0, 119, 0, 0.1);
+    --hover-bg: rgba(0, 119, 0, 0.2);
+    --header-bg: #e0e0e0;
+    --input-bg: #e8e8e8;
 }
 
 * {
@@ -17,7 +40,7 @@
 
 body {
     background-color: var(--terminal-bg);
-    color: var(--terminal-green);
+    color: var(--text-color);
     font-family: var(--terminal-font);
     font-size: 16px;
     line-height: 1.5;
@@ -25,8 +48,10 @@ body {
     overflow: hidden;
     margin: 0;
     padding: 0;
+    transition: background-color 0.3s, color 0.3s;
 }
 
+/* Only show scanline effect in dark mode */
 .scanline {
     position: fixed;
     top: 0;
@@ -38,6 +63,11 @@ body {
     z-index: 1;
     pointer-events: none;
     animation: scanline 10s linear infinite;
+    opacity: 1;
+}
+
+body.light .scanline {
+    opacity: 0;
 }
 
 @keyframes scanline {
@@ -71,13 +101,14 @@ body {
 
 .modal-content {
     background-color: var(--terminal-bg);
-    border: 2px solid var(--terminal-green);
+    border: 2px solid var(--border-color);
     box-shadow: 0 0 20px var(--glow-color);
     width: 80%;
     max-width: 600px;
     max-height: 80vh;
     overflow-y: auto;
     animation: modal-glow 2s infinite alternate;
+    transition: background-color 0.3s;
 }
 
 @keyframes modal-glow {
@@ -87,14 +118,14 @@ body {
 
 .modal-header {
     padding: 15px;
-    border-bottom: 1px solid var(--terminal-green);
+    border-bottom: 1px solid var(--border-color);
     text-align: center;
     position: relative;
 }
 
 .modal-header h2 {
     margin: 0;
-    color: var(--terminal-green);
+    color: var(--text-color);
     text-shadow: 0 0 5px var(--glow-color);
 }
 
@@ -107,25 +138,25 @@ body {
 }
 
 .character-card {
-    border: 1px solid var(--terminal-green);
+    border: 1px solid var(--border-color);
     border-radius: 3px;
     padding: 15px;
     margin-bottom: 10px;
     cursor: pointer;
-    background-color: rgba(0, 20, 0, 0.3);
+    background-color: var(--section-bg);
     transition: all 0.2s ease;
 }
 
 .character-card:hover,
 .character-card.selected {
-    background-color: rgba(0, 60, 0, 0.3);
+    background-color: var(--hover-bg);
     transform: translateY(-2px);
     box-shadow: 0 0 10px var(--glow-color);
 }
 
 .character-card h3 {
     margin-top: 0;
-    border-bottom: 1px solid rgba(0, 255, 0, 0.3);
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 5px;
     margin-bottom: 10px;
 }
@@ -175,16 +206,17 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid var(--terminal-green);
+    border-bottom: 1px solid var(--border-color);
     padding: 0 20px;
     z-index: 3;
-    background-color: var(--terminal-bg);
+    background-color: var(--header-bg);
+    transition: background-color 0.3s;
 }
 
 .game-title {
     font-size: 1.5rem;
     font-weight: bold;
-    color: var(--terminal-green);
+    color: var(--text-color);
     text-shadow: 0 0 5px var(--glow-color);
 }
 
@@ -197,7 +229,7 @@ body {
     flex: 3;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--terminal-green);
+    border-right: 1px solid var(--border-color);
     margin-top: 50px;
     height: calc(100vh - 50px);
 }
@@ -206,7 +238,7 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
-    border-right: 1px solid var(--terminal-green);
+    border-right: 1px solid var(--border-color);
     margin-top: 50px;
     height: calc(100vh - 50px);
     overflow-y: auto;
@@ -236,33 +268,50 @@ body {
     white-space: pre-wrap;
     font-family: var(--terminal-font);
     background-color: var(--terminal-bg);
-    color: var(--terminal-green);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
 }
 
 .command-input-container {
     height: 40px;
-    background-color: rgba(0, 10, 0, 0.95);
-    border-top: 1px solid var(--terminal-green);
+    background-color: var(--input-bg);
+    border-top: 1px solid var(--border-color);
     display: flex;
     align-items: center;
     padding: 0 10px;
-}
-
-#command-input {
-    flex: 1;
-    background-color: transparent;
-    border: none;
-    color: var(--terminal-green);
-    font-family: var(--terminal-font);
-    font-size: 16px;
-    outline: none;
-    height: 30px;
+    transition: background-color 0.3s;
 }
 
 .prompt {
     color: var(--terminal-green);
-    margin-right: 10px;
+    margin-right: 8px;
     font-weight: bold;
+}
+
+#command-input {
+    background-color: transparent;
+    border: none;
+    outline: none;
+    color: var(--text-color);
+    font-family: var(--terminal-font);
+    font-size: 16px;
+    width: 100%;
+    padding: 8px 0;
+}
+
+#theme-toggle {
+    margin-right: 10px;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body.light #theme-toggle {
+    background-color: #333;
+    color: #fff;
+}
+
+body.dark #theme-toggle {
+    background-color: #f5f5f5;
+    color: #333;
 }
 
 /* Party column styles */
@@ -454,21 +503,99 @@ body {
 }
 
 /* Equipment Section */
-.equipment-section {
-    border: 1px solid var(--terminal-green);
-    padding: 8px;
+.equipment-section,
+.inventory-section,
+.weapons-section,
+.armor-section {
+    margin-top: 15px;
+    border: 1px solid var(--border-color);
     border-radius: 5px;
-    margin-bottom: 15px;
-    background-color: rgba(0, 20, 0, 0.3);
+    padding: 10px;
+    background-color: var(--section-bg);
 }
 
-.stats-list {
-    list-style: none;
-    padding-left: 10px;
+.equipment-slots {
+    margin-top: 5px;
 }
 
-.stats-list li {
-    margin-bottom: 3px;
+.slot-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+}
+
+.slot-item {
+    margin-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 6px;
+    border-radius: 3px;
+    background-color: var(--section-bg);
+    border: 1px dashed var(--border-color);
+}
+
+.slot-name {
+    font-weight: bold;
+    color: var(--terminal-green);
+}
+
+.slot-value {
+    color: var(--text-color);
+}
+
+/* Inventory Section Styles */
+.inventory-list {
+    list-style-type: none;
+    padding: 10px;
+    margin: 0;
+    background-color: var(--section-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    min-height: 50px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.inventory-list li {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+    border-bottom: 1px dotted var(--border-color);
+}
+
+.inventory-list li:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.inventory-list li.equipped {
+    font-weight: bold;
+    color: var(--terminal-green);
+}
+
+/* Weapons and Armor Tables */
+#armor-table, #weapons-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 5px;
+    background-color: var(--section-bg);
+    border: 1px solid var(--border-color);
+}
+
+#armor-table th, #armor-table td,
+#weapons-table th, #weapons-table td {
+    padding: 5px 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 14px;
+}
+
+#armor-table th, #weapons-table th {
+    background-color: rgba(0, 20, 0, 0.5);
+    color: var(--terminal-green);
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 12px;
 }
 
 /* Weapons Section */

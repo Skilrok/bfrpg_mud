@@ -30,11 +30,42 @@ document.addEventListener('DOMContentLoaded', function() {
     const characterListContainer = document.getElementById('character-list');
     const createCharacterBtn = document.getElementById('create-character-btn');
     const partyMembers = document.getElementById('party-members');
+    const themeToggleBtn = document.getElementById('theme-toggle');
 
     // Authentication state
     const token = localStorage.getItem('token');
     const username = localStorage.getItem('username');
     let characterId = localStorage.getItem('characterId');
+
+    // Theme toggle functionality
+    function initializeTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.body.className = savedTheme;
+        updateThemeToggleText();
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.body.className;
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        document.body.className = newTheme;
+        localStorage.setItem('theme', newTheme);
+        updateThemeToggleText();
+    }
+
+    function updateThemeToggleText() {
+        if (themeToggleBtn) {
+            const currentTheme = document.body.className;
+            themeToggleBtn.textContent = currentTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+        }
+    }
+
+    // Initialize theme on page load
+    initializeTheme();
+
+    // Add theme toggle event listener
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', toggleTheme);
+    }
 
     // Redirect to login if not authenticated
     if (!token) {
@@ -94,8 +125,8 @@ document.addEventListener('DOMContentLoaded', function() {
     */
 
     // Game state
-    let gameHistory = [];
-    let historyIndex = -1;
+    let gameHistory = JSON.parse(localStorage.getItem('commandHistory') || '[]');
+    let historyIndex = gameHistory.length;
     let wsConnection = null;
     let useWebSocket = true;
     let sessionId = generateSessionId();
@@ -106,7 +137,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // Variables for command debouncing
     let lastCommand = '';
     let lastCommandTime = 0;
-    const COMMAND_DEBOUNCE_MS = 500; // 500ms debounce time
+    const COMMAND_DEBOUNCE_MS = 500;
+    const MAX_HISTORY_SIZE = 50; // Maximum number of commands to store in history
 
     // Initialize game
     function initGame() {
@@ -798,15 +830,15 @@ document.addEventListener('DOMContentLoaded', function() {
         if (useWebSocket && wsConnection && wsConnection.readyState === WebSocket.OPEN) {
             // Make sure we have the latest character ID
             const currentCharId = localStorage.getItem('characterId') || characterId;
-            
+
             // Log for debugging purposes
             console.log(`Sending command via WebSocket. Character ID: ${currentCharId}, Command: ${command}`);
-            
+
             wsConnection.send(JSON.stringify({
                 command: command,
                 character_id: currentCharId  // Always include character_id with every command
             }));
-            
+
             // Clear input after sending
             commandInput.value = '';
             return;
@@ -905,7 +937,7 @@ document.addEventListener('DOMContentLoaded', function() {
             } else {
                 console.warn("Character name element not found in character sheet");
             }
-            
+
             // Also update the character name in the party window
             const partyCharNameElement = document.getElementById('party-char-name');
             if (partyCharNameElement) {
@@ -980,7 +1012,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Try to update weapons
             try {
-                updateWeapons(character.weapons || []);
+                updateWeaponsList(character.weapons || []);
             } catch (error) {
                 console.error("Error updating weapons:", error);
             }
@@ -1018,7 +1050,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Helper function to calculate ability modifier
     function calculateModifier(abilityScore) {
-        const mod = Math.floor((abilityScore - 10) / 2);
+        // Ensure we're working with a number
+        const score = parseInt(abilityScore) || 10;
+        const mod = Math.floor((score - 10) / 2);
+        // Return as a formatted string with + or - sign
         return mod >= 0 ? `+${mod}` : `${mod}`;
     }
 
@@ -1070,6 +1105,64 @@ document.addEventListener('DOMContentLoaded', function() {
         featuresElement.innerHTML = featuresHTML;
     }
 
+    // Helper function to get the currently active character
+    function getCurrentCharacter() {
+        // Check if we're still loading character data
+        const loadingMessage = document.querySelector('#message-container .message-system');
+        if (loadingMessage && loadingMessage.textContent.includes('Loading character data')) {
+            console.log("Character data is still loading, returning null");
+            return null;
+        }
+
+        // First look for the character in the global state
+        if (characterId && characters && characters.length) {
+            const character = characters.find(c => String(c.id) === String(characterId));
+            if (character) {
+                console.log("Found character in global state:", character.name);
+                return character;
+            }
+        }
+
+        // If not found, try to get it from DOM elements
+        try {
+            const nameElement = document.getElementById('character-name');
+            const raceElement = document.getElementById('character-race');
+            const classElement = document.getElementById('character-class');
+            const levelElement = document.getElementById('character-level');
+            const strengthElement = document.getElementById('strength-score');
+            const dexterityElement = document.getElementById('dexterity-score');
+            const constitutionElement = document.getElementById('constitution-score');
+            const intelligenceElement = document.getElementById('intelligence-score');
+            const wisdomElement = document.getElementById('wisdom-score');
+            const charismaElement = document.getElementById('charisma-score');
+
+            // Check if all elements exist before trying to access their content
+            if (!nameElement || !raceElement || !classElement || !levelElement) {
+                console.warn("Character UI elements not found, character data may not be loaded yet");
+                return null;
+            }
+
+            return {
+                id: characterId,
+                name: nameElement.textContent || "Unknown",
+                race: raceElement.textContent || "Unknown",
+                character_class: classElement.textContent || "Fighter",
+                level: levelElement.textContent || "1",
+                abilities: {
+                    strength: (strengthElement && strengthElement.textContent) || "10",
+                    dexterity: (dexterityElement && dexterityElement.textContent) || "10",
+                    constitution: (constitutionElement && constitutionElement.textContent) || "10",
+                    intelligence: (intelligenceElement && intelligenceElement.textContent) || "10",
+                    wisdom: (wisdomElement && wisdomElement.textContent) || "10",
+                    charisma: (charismaElement && charismaElement.textContent) || "10"
+                }
+            };
+        } catch (error) {
+            console.warn("Could not construct character from DOM:", error);
+            return null;
+        }
+    }
+
     // Get spells per day based on class and level
     function getSpellsPerDay(character) {
         const level = character.level || 1;
@@ -1101,185 +1194,644 @@ document.addEventListener('DOMContentLoaded', function() {
         `;
     }
 
+    // Helper function to calculate a character's attack bonus with a weapon
+    function getCharacterAttackBonus(character, weapon) {
+        if (!character) return "--";
+        if (!weapon || !weapon.name) return "--";
+
+        console.log("Calculating attack bonus for weapon:", weapon.name);
+
+        // Base attack bonus from character class and level
+        let baseAttack = 0;
+        const level = parseInt(character.level) || 1;
+
+        // Different classes have different attack progression
+        const charClass = (character.character_class || character.class || "").toLowerCase();
+
+        if (charClass.includes("fighter") || charClass.includes("dwarf") || charClass.includes("elf")) {
+            baseAttack = Math.floor(level);
+        } else if (charClass.includes("cleric") || charClass.includes("thief") || charClass.includes("halfling")) {
+            baseAttack = Math.floor(level * 0.75);
+        } else if (charClass.includes("magic-user")) {
+            baseAttack = Math.floor(level * 0.5);
+        } else {
+            // Default progression
+            baseAttack = Math.floor(level * 0.75);
+        }
+
+        // Add strength modifier for melee weapons or dexterity for ranged weapons
+        let abilityMod = 0;
+
+        // Check if character has abilities
+        if (character.abilities) {
+            const str = parseInt(character.abilities.strength) || 10;
+            const dex = parseInt(character.abilities.dexterity) || 10;
+
+            // Determine if weapon is ranged
+            const isRanged = weapon.name.toLowerCase().includes('bow') ||
+                              weapon.name.toLowerCase().includes('crossbow') ||
+                              weapon.name.toLowerCase().includes('sling');
+
+            if (isRanged) {
+                // Use dexterity for ranged weapons
+                abilityMod = calculateModifier(dex);
+            } else {
+                // Use strength for melee weapons
+                abilityMod = calculateModifier(str);
+            }
+        }
+
+        // Calculate total attack bonus
+        const totalBonus = baseAttack + abilityMod;
+
+        // Format as +X or -X
+        return totalBonus >= 0 ? `+${totalBonus}` : `${totalBonus}`;
+    }
+
+    // Helper function to determine standard weapon damage based on weapon name
+    function getStandardWeaponDamage(weaponName) {
+        if (!weaponName) return "--";
+
+        const name = weaponName.toLowerCase();
+
+        // Basic Fantasy RPG standard weapon damages
+        if (name.includes('dagger') || name.includes('dart')) {
+            return "1d4";
+        } else if (name.includes('hand axe') || name.includes('club') ||
+                  name.includes('hammer') || name.includes('mace') ||
+                  name.includes('staff') || name.includes('short sword')) {
+            return "1d6";
+        } else if (name.includes('spear') || name.includes('long sword') ||
+                  name.includes('battle axe') || name.includes('flail') ||
+                  name.includes('war hammer')) {
+            return "1d8";
+        } else if (name.includes('two-handed sword') || name.includes('pole arm')) {
+            return "1d10";
+        } else if (name.includes('shortbow') || name.includes('short bow')) {
+            return "1d6";
+        } else if (name.includes('longbow') || name.includes('long bow')) {
+            return "1d8";
+        } else if (name.includes('crossbow')) {
+            return "1d6";
+        } else if (name.includes('sling')) {
+            return "1d4";
+        } else {
+            // Default damage if we can't identify the weapon
+            return "1d6";
+        }
+    }
+
     // Update weapons table
-    function updateWeapons(weapons) {
+    function updateWeaponsList(weapons) {
+        console.log("Updating weapons list with:", weapons);
+        // Get the weapons container
         const weaponsList = document.getElementById('weapons-list');
-        if (!weaponsList) return;
+        if (!weaponsList) {
+            console.error("Weapons list element not found");
+            return;
+        }
+
+        // Clear current weapons
+        weaponsList.innerHTML = '';
 
         if (!weapons || weapons.length === 0) {
-            weaponsList.innerHTML = `
-                <tr>
-                    <td colspan="4">No weapons</td>
-                </tr>
-            `;
+            console.log("No weapons to display");
+            const row = weaponsList.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 4;
+            cell.textContent = 'No weapons';
             return;
         }
 
-        let weaponsHTML = '';
+        // Add weapons to the table
         weapons.forEach(weapon => {
-            if (typeof weapon === 'string') {
-                // Simple weapon entry
-                weaponsHTML += `
-                    <tr>
-                        <td>${weapon}</td>
-                        <td>--</td>
-                        <td>--</td>
-                        <td>--</td>
-                    </tr>
-                `;
-            } else {
-                // Detailed weapon entry
-                weaponsHTML += `
-                    <tr>
-                        <td>${weapon.name || 'Unknown'}</td>
-                        <td>${weapon.attack || '--'}</td>
-                        <td>${weapon.damage || '--'}</td>
-                        <td>${weapon.notes || ''}</td>
-                    </tr>
-                `;
-            }
-        });
+            console.log("Processing weapon object:", weapon);
 
-        weaponsList.innerHTML = weaponsHTML;
+            // Safely extract properties from multiple possible locations
+            const properties = (typeof weapon.properties === 'object') ? weapon.properties : {};
+
+            // Extract weapon name
+            const name = weapon.name || 'Unknown weapon';
+
+            // Extract attack bonus
+            let attackBonus = '+0';
+
+            // First try the attack property directly
+            if (weapon.attack !== undefined) {
+                attackBonus = weapon.attack;
+            } else if (properties.attack !== undefined) {
+                attackBonus = properties.attack;
+            } else if (weapon.item_data && weapon.item_data.attack !== undefined) {
+                attackBonus = weapon.item_data.attack;
+            } else {
+                // Calculate attack bonus based on character stats if available
+                try {
+                    const character = getCurrentCharacter();
+                    if (character) {
+                        attackBonus = getCharacterAttackBonus(character, weapon);
+                    }
+                } catch (e) {
+                    console.warn("Could not calculate attack bonus:", e);
+                }
+            }
+
+            // Make sure attack bonus has a + or - prefix
+            if (typeof attackBonus === 'number') {
+                attackBonus = (attackBonus >= 0 ? '+' : '') + attackBonus;
+            } else if (typeof attackBonus === 'string' && !attackBonus.startsWith('+') && !attackBonus.startsWith('-')) {
+                attackBonus = '+' + attackBonus;
+            }
+
+            // Extract damage
+            let damage = '1d6';  // Default damage
+
+            if (weapon.damage) {
+                damage = weapon.damage;
+            } else if (properties.damage) {
+                damage = properties.damage;
+            } else if (weapon.item_data && weapon.item_data.damage) {
+                damage = weapon.item_data.damage;
+            } else {
+                // Try to determine standard damage based on weapon name
+                const standardDamage = getStandardWeaponDamage(weapon.name);
+                if (standardDamage) {
+                    damage = standardDamage;
+                }
+            }
+
+            // Generate notes
+            let notes = '';
+
+            // Add weapon type if available
+            if (weapon.weapon_type || properties.weapon_type) {
+                notes = weapon.weapon_type || properties.weapon_type;
+            }
+
+            // Add range information if available
+            if (weapon.range || properties.range) {
+                const range = weapon.range || properties.range;
+                if (notes) notes += ', ';
+                notes += `Range: ${range}`;
+            }
+
+            // Add weight if available
+            if (weapon.weight || properties.weight) {
+                const weight = weapon.weight || properties.weight;
+                if (notes) notes += ', ';
+                notes += `Weight: ${weight}`;
+            }
+
+            // Add any special properties
+            if (weapon.special || properties.special) {
+                const special = weapon.special || properties.special;
+                if (notes) notes += ', ';
+                notes += `Special: ${special}`;
+            }
+
+            // Check if weapon is equipped
+            const isEquipped = weapon.equipped ||
+                (properties.equipped) ||
+                (weapon.item_data && weapon.item_data.equipped);
+
+            const row = weaponsList.insertRow();
+
+            // Add weapon name (with equipped indicator if needed)
+            const nameCell = row.insertCell();
+            nameCell.textContent = isEquipped ? `${name} (equipped)` : name;
+            if (isEquipped) {
+                nameCell.style.fontWeight = 'bold';
+            }
+
+            // Add attack bonus
+            const attackCell = row.insertCell();
+            attackCell.textContent = attackBonus;
+
+            // Add damage
+            const damageCell = row.insertCell();
+            damageCell.textContent = damage;
+
+            // Add notes
+            const notesCell = row.insertCell();
+            notesCell.textContent = notes;
+        });
     }
 
-    function updateInventory(inventoryItems) {
-        if (!equipmentList) return;
+    // Backward compatibility function that calls updateWeaponsList
+    function updateWeapons(weapons) {
+        console.log("updateWeapons called, forwarding to updateWeaponsList");
+        return updateWeaponsList(weapons);
+    }
 
-        // Clear current equipment list
-        equipmentList.innerHTML = '';
-
-        if (!inventoryItems || inventoryItems.length === 0) {
-            const li = document.createElement('li');
-            li.textContent = 'No equipment';
-            equipmentList.appendChild(li);
+    // Function to load inventory data from API
+    async function loadInventory(characterId) {
+        console.log(`Loading inventory for character ${characterId}`);
+        if (!characterId) {
+            console.error("No character ID provided for loadInventory");
             return;
         }
 
-        // Add each item to the equipment list
-        inventoryItems.forEach(item => {
-            const li = document.createElement('li');
-            if (typeof item === 'string') {
-                li.textContent = item;
-            } else {
-                li.textContent = item.name || 'Unknown item';
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error("No auth token found for inventory request");
+                return;
             }
-            equipmentList.appendChild(li);
+
+            // Fetch inventory data using the inventory command API
+            const response = await fetch(`/api/commands`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    character_id: characterId,
+                    command: "inventory"
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch inventory: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log("Inventory command response:", data);
+
+            // If command was successful and returned inventory data
+            if (data.success && data.data && data.data.inventory) {
+                // Update the inventory in the UI
+                updateInventory(data.data.inventory);
+            } else {
+                console.warn("Inventory command did not return valid data:", data);
+                // Try to parse inventory from the message as fallback
+                if (data.success && data.message) {
+                    console.log("Attempting to extract inventory from command message");
+                    displayMessage(data.message);
+                }
+            }
+        } catch (error) {
+            console.error("Error loading inventory:", error);
+            displayMessage("Failed to load inventory. Please try again.", "error");
+        }
+    }
+
+    // Update the inventory list display to show all general items
+    function updateInventoryList(inventory) {
+        console.log("Updating inventory list with:", inventory);
+        const inventoryList = document.getElementById('inventory-list');
+        if (!inventoryList) {
+            console.error("Inventory list element not found");
+            return;
+        }
+
+        // Clear current inventory display
+        inventoryList.innerHTML = '';
+
+        // If no inventory items, show a message
+        if (!inventory || inventory.length === 0) {
+            const emptyItem = document.createElement('li');
+            emptyItem.textContent = 'No items in inventory';
+            inventoryList.appendChild(emptyItem);
+            return;
+        }
+
+        // Add each item to the inventory list
+        inventory.forEach(item => {
+            const listItem = document.createElement('li');
+            listItem.className = 'inventory-item';
+
+            // Get item name with fallback
+            const itemName = item.name || 'Unknown item';
+
+            // Check if item is equipped
+            const isEquipped = item.equipped ||
+                (item.properties && item.properties.equipped) ||
+                (item.item_data && item.item_data.equipped);
+
+            // Create the item name with equipped status if applicable
+            let itemText = itemName;
+            if (isEquipped) {
+                itemText += ' (equipped)';
+                listItem.classList.add('equipped');
+            }
+
+            // Add quantity if more than 1
+            if (item.quantity && item.quantity > 1) {
+                itemText = `${itemName} (${item.quantity})`;
+            }
+
+            listItem.textContent = itemText;
+
+            // Add tooltip with description if available
+            if (item.description) {
+                listItem.title = item.description;
+            }
+
+            inventoryList.appendChild(listItem);
         });
     }
 
-    function addJournalEntry(entry) {
-        if (!journalContent) return;
+    // Function to update inventory with the provided data
+    function updateInventory(inventory) {
+        console.log("Updating inventory with data:", JSON.stringify(inventory, null, 2));
 
-        // Check if we have an existing entry or are creating a new one
-        let entryObject = entry;
-        if (typeof entry === 'string') {
-            const date = new Date();
-            entryObject = {
-                date: date.toLocaleString(),
-                text: entry
-            };
+        // Update the general inventory list
+        updateInventoryList(inventory);
+
+        // Extract weapons and armor from inventory
+        let weapons = [];
+        let armorItems = [];
+
+        if (Array.isArray(inventory)) {
+            // Check structure of inventory item for logging
+            if (inventory.length > 0) {
+                console.log("First inventory item structure:", Object.keys(inventory[0]));
+            }
+
+            // Filter items into weapons and armor
+            inventory.forEach(item => {
+                // Debug each inventory item
+                console.log("Processing inventory item:", item.name, "type:", item.item_type);
+
+                if (!item.item_type) {
+                    console.log("Item missing item_type:", item);
+                }
+
+                if (item.item_type === 'weapon') {
+                    weapons.push(item);
+                } else if (item.item_type === 'armor' || item.item_type === 'shield') {
+                    armorItems.push(item);
+                } else if (item.type && (item.type.toLowerCase() === 'weapon' ||
+                           (item.item_subtype && item.item_subtype.toLowerCase() === 'weapon'))) {
+                    // Alternative property naming for weapons
+                    weapons.push(item);
+                } else if (item.name && (
+                    item.name.toLowerCase().includes('sword') ||
+                    item.name.toLowerCase().includes('axe') ||
+                    item.name.toLowerCase().includes('mace') ||
+                    item.name.toLowerCase().includes('dagger') ||
+                    item.name.toLowerCase().includes('staff') ||
+                    item.name.toLowerCase().includes('club') ||
+                    item.name.toLowerCase().includes('hammer') ||
+                    item.name.toLowerCase().includes('bow') ||
+                    item.name.toLowerCase().includes('crossbow') ||
+                    item.name.toLowerCase().includes('sling')
+                )) {
+                    // If item name suggests a weapon but item_type is missing
+                    console.log("Detected likely weapon by name:", item.name);
+                    // Clone the item and ensure it has item_type
+                    const weaponItem = {...item, item_type: 'weapon'};
+                    weapons.push(weaponItem);
+                } else if (item.name && (
+                    item.name.toLowerCase().includes('armor') ||
+                    item.name.toLowerCase().includes('plate') ||
+                    item.name.toLowerCase().includes('mail') ||
+                    item.name.toLowerCase().includes('leather') ||
+                    item.name.toLowerCase().includes('shield') ||
+                    item.name.toLowerCase().includes('helm') ||
+                    item.name.toLowerCase().includes('robe') ||
+                    item.name.toLowerCase().includes('cloak')
+                )) {
+                    // If item name suggests armor but item_type is missing
+                    console.log("Detected likely armor by name:", item.name);
+                    const armorItem = {...item, item_type: item.name.toLowerCase().includes('shield') ? 'shield' : 'armor'};
+                    armorItems.push(armorItem);
+                }
+            });
+
+            console.log(`Found ${weapons.length} weapons and ${armorItems.length} armor items`);
+        } else {
+            console.warn("Inventory is not an array:", inventory);
         }
 
-        // Try to send to API first if we have a characterId
-        if (characterId) {
-            saveJournalEntryToAPI(characterId, entryObject.text)
-                .catch(error => {
-                    console.error("Failed to save journal entry to API:", error);
-                    // Already falls back to local storage in the API function
-                });
+        // Update weapon list
+        try {
+            updateWeaponsList(weapons);
+        } catch (error) {
+            console.error("Error updating weapons list:", error);
         }
 
-        // Always update the UI
-        if (journalContent.textContent.trim() === 'No journal entries yet.') {
-            journalContent.innerHTML = '';
+        // Update armor list
+        try {
+            updateArmorList(armorItems);
+        } catch (error) {
+            console.error("Error updating armor list:", error);
         }
 
-        const entryDiv = document.createElement('div');
-        entryDiv.classList.add('journal-entry');
-
-        const dateDiv = document.createElement('div');
-        dateDiv.classList.add('entry-date');
-        dateDiv.textContent = entryObject.date;
-
-        const textDiv = document.createElement('div');
-        textDiv.classList.add('entry-text');
-        textDiv.textContent = entryObject.text;
-
-        entryDiv.appendChild(dateDiv);
-        entryDiv.appendChild(textDiv);
-        journalContent.appendChild(entryDiv);
-
-        // Scroll to bottom
-        journalContent.scrollTop = journalContent.scrollHeight;
-
-        // Save to local storage as a backup
-        saveJournalEntryToLocalStorage(entryObject);
+        // Update equipped items
+        try {
+            updateEquippedItems(inventory);
+        } catch (error) {
+            console.error("Error updating equipped items:", error);
+        }
     }
 
-    // Make addJournalEntry function available globally for the inline script
-    window.addJournalEntry = addJournalEntry;
+    // Function to update equipped items
+    function updateEquippedItems(inventory) {
+        console.log("Updating equipped items with inventory:", inventory);
 
-    // Save journal entry to local storage for the current character
-    function saveJournalEntryToLocalStorage(entry) {
-        if (!characterId) return;
+        // Find equipped items by slot
+        const equippedItems = {
+            head: null,
+            body: null,
+            mainHand: null,
+            offHand: null
+        };
 
-        // Get existing journal entries for this character
-        const journalKey = `journal_${characterId}`;
-        const storedEntries = localStorage.getItem(journalKey);
-        let entries = [];
+        if (Array.isArray(inventory)) {
+            inventory.forEach(item => {
+                console.log("Checking item for equipped status:", item.name, "equipped:", item.equipped);
 
-        if (storedEntries) {
-            try {
-                entries = JSON.parse(storedEntries);
-            } catch (e) {
-                console.error("Failed to parse stored journal entries", e);
-                entries = [];
-            }
+                // Check all possible ways an item might be marked as equipped
+                const isEquipped = item.equipped ||
+                    (item.properties && item.properties.equipped) ||
+                    (item.item_data && item.item_data.equipped);
+
+                if (isEquipped) {
+                    console.log("Found equipped item:", item.name);
+
+                    // Determine which slot based on item data
+                    const slotName = item.slot ||
+                                (item.properties && item.properties.slot);
+
+                    // Map slot names from the API to our UI slots
+                    if (slotName) {
+                        // If item has an explicit slot property, use a standardized name
+                        const mappedSlot = {
+                            'head': 'head',
+                            'helmet': 'head',
+                            'headgear': 'head',
+                            'body': 'body',
+                            'armor': 'body',
+                            'main_hand': 'mainHand',
+                            'main hand': 'mainHand',
+                            'mainhand': 'mainHand',
+                            'primary': 'mainHand',
+                            'off_hand': 'offHand',
+                            'off hand': 'offHand',
+                            'offhand': 'offHand',
+                            'secondary': 'offHand',
+                            'shield': 'offHand'
+                        }[slotName.toLowerCase()] || slotName;
+
+                        if (equippedItems.hasOwnProperty(mappedSlot)) {
+                            equippedItems[mappedSlot] = item;
+                        }
+                    } else if (item.item_type === 'helmet' || item.item_type === 'headgear') {
+                        equippedItems.head = item;
+                    } else if (item.item_type === 'armor' || item.item_type === 'robe') {
+                        equippedItems.body = item;
+                    } else if (item.item_type === 'weapon' && (!equippedItems.mainHand || item.primary_weapon)) {
+                        equippedItems.mainHand = item;
+                    } else if (item.item_type === 'shield') {
+                        equippedItems.offHand = item;
+                    } else if (item.item_type === 'weapon' && !equippedItems.offHand) {
+                        // Only put a second weapon in offhand if nothing else is there
+                        equippedItems.offHand = item;
+                    }
+                }
+            });
         }
 
-        // Add new entry
-        entries.push(entry);
+        console.log("Equipped items by slot:", equippedItems);
 
-        // Save back to local storage
-        localStorage.setItem(journalKey, JSON.stringify(entries));
+        // Update the UI with equipped items
+        updateEquippedItemDisplay('Head', equippedItems.head);
+        updateEquippedItemDisplay('Body', equippedItems.body);
+        updateEquippedItemDisplay('Main Hand', equippedItems.mainHand);
+        updateEquippedItemDisplay('Off Hand', equippedItems.offHand);
     }
 
-    // Handle command input
-    commandInput.addEventListener('keydown', function(e) {
-        if (e.key === 'Enter') {
-            const command = commandInput.value.trim();
-            if (command) {
-                // Add to history
-                gameHistory.push(command);
-                historyIndex = gameHistory.length;
+    // Helper function to update a specific equipped item slot display
+    function updateEquippedItemDisplay(slotName, item) {
+        // Map slot names to HTML element IDs
+        const slotIdMap = {
+            'Head': 'slot-head',
+            'Body': 'slot-body',
+            'Main Hand': 'slot-main-hand',
+            'Off Hand': 'slot-off-hand'
+        };
 
-                // Send command to server
-                sendCommand(command);
-
-                // Clear input
-                commandInput.value = '';
-            }
-            e.preventDefault();
-        } else if (e.key === 'ArrowUp') {
-            // Navigate history
-            if (historyIndex > 0) {
-                historyIndex--;
-                commandInput.value = gameHistory[historyIndex];
-            }
-            e.preventDefault();
-        } else if (e.key === 'ArrowDown') {
-            // Navigate history
-            if (historyIndex < gameHistory.length - 1) {
-                historyIndex++;
-                commandInput.value = gameHistory[historyIndex];
-            } else if (historyIndex === gameHistory.length - 1) {
-                historyIndex = gameHistory.length;
-                commandInput.value = '';
-            }
-            e.preventDefault();
+        const slotId = slotIdMap[slotName];
+        if (!slotId) {
+            console.warn(`Unknown slot name: ${slotName}`);
+            return;
         }
-    });
+
+        const slotElement = document.getElementById(slotId);
+        if (!slotElement) {
+            console.warn(`Could not find element for slot ID: ${slotId}`);
+            return;
+        }
+
+        // Update the slot with item info or clear it
+        if (item) {
+            slotElement.textContent = item.name || 'Unknown item';
+            // You can add more info like a tooltip with item.description if needed
+        } else {
+            slotElement.textContent = '-';
+        }
+    }
+
+    // Update the armor table
+    function updateArmorList(armorItems) {
+        console.log("Updating armor list with:", armorItems);
+        const armorList = document.getElementById('armor-list');
+        if (!armorList) {
+            console.error("Armor list element not found");
+            return;
+        }
+
+        // Clear current armor list
+        armorList.innerHTML = '';
+
+        // If no armor, display a message
+        if (!armorItems || armorItems.length === 0) {
+            const row = armorList.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 4;
+            cell.textContent = 'No armor';
+            return;
+        }
+
+        // Add each armor item to the table
+        armorItems.forEach(armor => {
+            // Debug log to see armor structure
+            console.log("Processing armor object:", JSON.stringify(armor, null, 2));
+
+            const row = armorList.insertRow();
+
+            // Safely get properties from multiple possible locations
+            // Use nullish coalescing to handle missing properties gracefully
+            const properties = (typeof armor.properties === 'object') ? armor.properties : {};
+
+            // Extract armor info, with fallbacks for different property names
+            const name = armor.name || 'Unknown';
+            const ac = armor.armor_class ?? (properties.armor_class ?? 0);
+
+            // Determine armor type
+            let type = 'Unknown';
+            if (armor.item_type === 'shield') {
+                type = 'Shield';
+            } else if (armor.armor_type) {
+                type = armor.armor_type;
+            } else if (properties.type) {
+                type = properties.type;
+            } else if (armor.item_type) {
+                type = armor.item_type.charAt(0).toUpperCase() + armor.item_type.slice(1);
+            }
+
+            // Generate notes text
+            let notes = '';
+
+            // Check if armor is equipped
+            const isEquipped = armor.equipped ||
+                           (properties.equipped) ||
+                           (armor.item_data && armor.item_data.equipped);
+
+            if (isEquipped) {
+                notes += 'Equipped';
+            }
+
+            // Add weight if available
+            if (armor.weight || properties.weight) {
+                const weight = armor.weight || properties.weight;
+                if (notes) notes += ', ';
+                notes += `Weight: ${weight}`;
+            }
+
+            // Add any additional properties useful for armor
+            if (properties.material) {
+                if (notes) notes += ', ';
+                notes += `Material: ${properties.material}`;
+            }
+
+            if (properties.restrictions || armor.restrictions) {
+                const restrictions = properties.restrictions || armor.restrictions;
+                if (notes) notes += ', ';
+                notes += `Restrictions: ${restrictions}`;
+            }
+
+            // Add armor name cell (with equipped indicator)
+            const nameCell = row.insertCell();
+            nameCell.textContent = isEquipped ? `${name} (equipped)` : name;
+            if (isEquipped) {
+                nameCell.style.fontWeight = 'bold';
+            }
+
+            // Add AC
+            const acCell = row.insertCell();
+            acCell.textContent = ac;
+
+            // Add armor type
+            const typeCell = row.insertCell();
+            typeCell.textContent = type;
+
+            // Add notes
+            const notesCell = row.insertCell();
+            notesCell.textContent = notes;
+        });
+    }
 
     // Load character data from API
     async function loadCharacterData(id, retryCount = 0) {
@@ -1381,6 +1933,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 };
 
                 // Update UI with character info
+                console.log("Updating character info with:", mergedCharacter);
                 updateCharacterInfo(mergedCharacter);
 
                 // Also try to load inventory and journal, but don't fail if they error
@@ -1457,181 +2010,6 @@ document.addEventListener('DOMContentLoaded', function() {
             updateCharacterInfo(minimumCharacterData);
             displayMessage("Limited emergency character data loaded. Game functionality may be limited.", "system");
             return true;
-        }
-    }
-
-    // Load inventory for a character
-    async function loadInventory(characterId) {
-        try {
-            const response = await fetch(`/api/characters/${characterId}/inventory`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-
-            const inventoryData = await response.json();
-            // The API returns an array of inventory items directly, not wrapped in an 'items' property
-            updateInventory(inventoryData);
-            return true;
-        } catch (error) {
-            console.error("Error loading inventory:", error);
-            return false;
-        }
-    }
-
-    // Load journal for a character
-    async function loadJournal(characterId) {
-        try {
-            // First try to load from local storage
-            const journalKey = `journal_${characterId}`;
-            const storedEntries = localStorage.getItem(journalKey);
-            let localEntries = [];
-
-            if (storedEntries) {
-                try {
-                    localEntries = JSON.parse(storedEntries);
-                    console.log(`Loaded ${localEntries.length} journal entries from local storage for character ${characterId}`);
-                } catch (e) {
-                    console.error("Failed to parse stored journal entries", e);
-                }
-            }
-
-            // Then try to get from API
-            const response = await fetch(`/api/characters/${characterId}/journal`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            // Clear existing entries
-            journalContent.innerHTML = '';
-
-            if (response.ok) {
-                const journalData = await response.json();
-                // If we have entries from the API, add them
-                if (journalData.entries && journalData.entries.length > 0) {
-                    // Combine API entries with local entries
-                    const combinedEntries = [...journalData.entries, ...localEntries];
-                    // Sort by date if needed
-                    combinedEntries.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-                    // Display entries
-                    combinedEntries.forEach(entry => {
-                        addJournalEntryToUI(entry);
-                    });
-                } else {
-                    // Otherwise just use local entries
-                    if (localEntries.length > 0) {
-                        localEntries.forEach(entry => {
-                            addJournalEntryToUI(entry);
-                        });
-                    } else {
-                        journalContent.textContent = 'No journal entries yet.';
-                    }
-                }
-            } else {
-                // If API failed, just use local entries
-                if (localEntries.length > 0) {
-                    localEntries.forEach(entry => {
-                        addJournalEntryToUI(entry);
-                    });
-                } else {
-                    journalContent.textContent = 'No journal entries yet.';
-                }
-            }
-
-            return true;
-        } catch (error) {
-            console.error("Error loading journal:", error);
-
-            // Try to use local entries as fallback
-            const journalKey = `journal_${characterId}`;
-            const storedEntries = localStorage.getItem(journalKey);
-
-            if (storedEntries) {
-                try {
-                    const localEntries = JSON.parse(storedEntries);
-                    journalContent.innerHTML = '';
-
-                    if (localEntries.length > 0) {
-                        localEntries.forEach(entry => {
-                            addJournalEntryToUI(entry);
-                        });
-                        return true;
-                    }
-                } catch (e) {
-                    console.error("Failed to parse stored journal entries", e);
-                }
-            }
-
-            journalContent.textContent = 'No journal entries yet.';
-            return false;
-        }
-    }
-
-    // Function to add a journal entry to the UI without adding it to storage
-    function addJournalEntryToUI(entry) {
-        if (!journalContent) return;
-
-        if (journalContent.textContent.trim() === 'No journal entries yet.') {
-            journalContent.innerHTML = '';
-        }
-
-        const entryDiv = document.createElement('div');
-        entryDiv.classList.add('journal-entry');
-
-        const dateDiv = document.createElement('div');
-        dateDiv.classList.add('entry-date');
-        dateDiv.textContent = entry.date;
-
-        const textDiv = document.createElement('div');
-        textDiv.classList.add('entry-text');
-        textDiv.textContent = entry.text;
-
-        entryDiv.appendChild(dateDiv);
-        entryDiv.appendChild(textDiv);
-        journalContent.appendChild(entryDiv);
-
-        // Scroll to bottom
-        journalContent.scrollTop = journalContent.scrollHeight;
-    }
-
-    // Select a character by name
-    function selectCharacterByName(name) {
-        if (!characters || characters.length === 0) {
-            // Load characters first then try to select
-            loadCharacters()
-                .then(chars => {
-                    characters = chars;
-                    trySelectCharacter();
-                })
-                .catch(error => {
-                    console.error("Error loading characters:", error);
-                    displayMessage("Error loading characters. Please try again later.", "error");
-                });
-        } else {
-            trySelectCharacter();
-        }
-
-        function trySelectCharacter() {
-            // Find the character that matches the name (case insensitive)
-            const character = characters.find(c =>
-                c.name.toLowerCase() === name.toLowerCase() ||
-                c.name.toLowerCase().includes(name.toLowerCase())
-            );
-
-            if (character) {
-                selectCharacter(character.id);
-                displayMessage(`Selected character: ${character.name}`, "system");
-            } else {
-                displayMessage(`Character "${name}" not found. Type "characters" to see available characters.`, "error");
-            }
         }
     }
 

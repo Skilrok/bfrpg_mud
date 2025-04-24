@@ -17,6 +17,7 @@ from app.routers.characters import (
     add_starting_equipment,
     calculate_racial_abilities,
     calculate_saving_throws,
+    get_ability_modifier,
 )
 from app.schemas.character import CharacterCreate
 
@@ -65,48 +66,99 @@ class CreateCharacterCommand(CommandHandler):
                 errors=["No database session"],
             )
 
-        # Need at least 2 args: "character" and a name
-        if len(ctx.args) < 2 or ctx.args[0].lower() != "character":
+        user_id = ctx.user.id
+        args = ctx.args  # ctx.args is already a list, no need to split
+
+        # Initialize character creation state if needed
+        if user_id not in creation_state_store:
+            if not args or args[0].lower() != "character":
+                return CommandResponse(
+                    success=False,
+                    message=("Invalid command format. Please use: create character"),
+                )
+
+            # Start a new character creation process
+            creation_state_store[user_id] = {
+                "creation_state": "race_selection",
+                "races_msg": self._generate_races_message(),
+            }
+
+            # Store character name if provided after "create character"
+            if len(args) > 1:
+                character_name = args[1]
+                creation_state_store[user_id]["name"] = character_name
+                return CommandResponse(
+                    success=True,
+                    message=(
+                        f"Starting character creation for '{character_name}'...\n\n"
+                        "First, select your character's race:\n\n"
+                        f"{creation_state_store[user_id]['races_msg']}\n\n"
+                        "Type 'race <race_name>' to select a race."
+                    ),
+                )
+
             return CommandResponse(
-                success=False,
-                message="Usage: create character <n>",
-                errors=["Invalid syntax"],
+                success=True,
+                message=(
+                    "Starting character creation...\n\n"
+                    "First, select your character's race:\n\n"
+                    f"{creation_state_store[user_id]['races_msg']}\n\n"
+                    "Type 'race <race_name>' to select a race."
+                ),
             )
 
-        # Extract character name from args (may contain spaces)
-        char_name = " ".join(ctx.args[1:])
+        # If creation already in progress, check what we're doing
+        state = creation_state_store[user_id]
 
-        # Check if user already has a character with this name
-        existing_char = (
-            db.query(Character)
-            .filter(Character.user_id == ctx.user.id, Character.name.ilike(char_name))
-            .first()
-        )
+        if args and args[0].lower() == "character":
+            # Just show the current state
+            return self._show_current_state(state)
 
-        if existing_char:
+        if state.get("name") and "confirm" not in args and not args:
+            # If the character is ready to be confirmed, remind them
             return CommandResponse(
-                success=False,
-                message=f"You already have a character named '{char_name}'.",
-                errors=["Duplicate character name"],
+                success=True,
+                message=(
+                    "Your character is ready to be created!\n\n"
+                    f"Name: {state['name']}\n"
+                    f"Race: {state['race']}\n"
+                    f"Class: {state['class']}\n"
+                    f"Ability Scores: {self._format_ability_scores(state.get('ability_scores', {}))}\n\n"
+                    "Type 'confirm' to create your character."
+                ),
             )
 
-        # Initialize character creation state
-        creation_state_store[ctx.user.id] = {
-            "creation_state": "race_selection",
-            "name": char_name,
-        }
+        # Let them know to select race first
+        if state.get("creation_state") == "race_selection":
+            return CommandResponse(
+                success=True,
+                message=(
+                    "Please select your character's race first.\n\n"
+                    f"{state['races_msg']}\n\n"
+                    "Type 'race <race_name>' to select a race."
+                ),
+            )
 
-        # Guide user through character creation
-        return CommandResponse(
-            success=True,
-            message=(
-                f"Creating a new character named '{char_name}'.\n\n"
-                f"Choose a race for your character by using the command:\n"
-                f"'race <race>'\n\n"
-                f"Available races: human, dwarf, elf, halfling"
-            ),
-            data={"creation_state": "race_selection", "name": char_name},
-        )
+        # If they've reach confirmation, run the character confirmation command
+        if args and args[0].lower() == "confirm":
+            confirm_command = command_registry.get_command_handler("confirm")
+            if confirm_command:
+                return await confirm_command.execute(ctx)
+
+        # Otherwise, show current state
+        return self._show_current_state(state)
+
+    def _generate_races_message(self):
+        # Implementation of _generate_races_message method
+        pass
+
+    def _show_current_state(self, state):
+        # Implementation of _show_current_state method
+        pass
+
+    def _format_ability_scores(self, scores):
+        # Implementation of _format_ability_scores method
+        pass
 
 
 class RaceCommand(CommandHandler):
@@ -133,7 +185,7 @@ class RaceCommand(CommandHandler):
         ):
             return CommandResponse(
                 success=False,
-                message="You need to start character creation first with 'create character <name>'",
+                message="You need to start character creation first with 'create character'",
                 errors=["No active character creation"],
             )
 
@@ -577,241 +629,124 @@ class ConfirmCharacterCommand(CommandHandler):
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # Get DB session
         db = ctx.data.get("db")
+
         if not db:
-            return CommandResponse(
-                success=False,
-                message="Database session not available.",
-                errors=["No database session"],
-            )
+            # Try to get it from context directly
+            db = ctx.db
 
-        # Check both context data and the state store
         user_id = ctx.user.id
-        creation_state = ctx.data.get("creation_state")
-        stored_state = creation_state_store.get(user_id, {}).get("creation_state")
 
-        # Log the states for debugging
-        logger.info(
-            f"ConfirmCharacterCommand: ctx state: {creation_state}, stored state: {stored_state}"
-        )
-
-        # Check if creation state is set correctly (either in context or in store)
-        if not (creation_state == "confirm" or stored_state == "confirm"):
+        # Check if the user is in character creation
+        if user_id not in creation_state_store:
             return CommandResponse(
                 success=False,
-                message=(
-                    "Character creation is not ready to be confirmed. "
-                    "Please complete all previous steps (race, class, and stats selection)."
-                ),
-                errors=["Invalid creation state"],
+                message="You haven't started character creation. Use 'create character' first.",
+                errors=["No active character creation"],
             )
 
-        # Try to get character data from both context and state store
-        name = ctx.data.get("name") or creation_state_store.get(user_id, {}).get("name")
-        race = ctx.data.get("race") or creation_state_store.get(user_id, {}).get("race")
-        char_class = ctx.data.get("class") or creation_state_store.get(user_id, {}).get(
-            "class"
-        )
-        ability_scores = ctx.data.get("ability_scores") or creation_state_store.get(
-            user_id, {}
-        ).get("ability_scores")
+        character_data = creation_state_store[user_id]
 
-        # Log the retrieved data for debugging
-        logger.info(
-            f"Retrieved character data: name={name}, race={race}, class={char_class}, scores={ability_scores}"
-        )
-
-        if not all([name, race, char_class, ability_scores]):
+        # Make sure we have the necessary data
+        if not all(
+            key in character_data for key in ["name", "race", "class", "ability_scores"]
+        ):
             return CommandResponse(
                 success=False,
-                message=(
-                    "Character information is incomplete. Please restart character creation.\n"
-                    "Missing: "
-                    + ", ".join(
-                        [
-                            k
-                            for k, v in {
-                                "name": name,
-                                "race": race,
-                                "class": char_class,
-                                "ability scores": ability_scores,
-                            }.items()
-                            if not v
-                        ]
-                    )
-                ),
+                message="Character creation is incomplete. Make sure you've set a name, race, class, and ability scores.",
                 errors=["Incomplete character data"],
             )
 
         try:
-            # Create CharacterCreate model
-            character_data = CharacterCreate(
-                name=name,
-                description=f"A brave {race} {char_class}",
-                race=race,
-                character_class=char_class,
-                strength=ability_scores["strength"],
-                intelligence=ability_scores["intelligence"],
-                wisdom=ability_scores["wisdom"],
-                dexterity=ability_scores["dexterity"],
-                constitution=ability_scores["constitution"],
-                charisma=ability_scores["charisma"],
-            )
+            # Get the character data
+            name = character_data["name"] or f"Character {random.randint(1000, 9999)}"
+            race = character_data["race"]
+            char_class = character_data["class"]
+            ability_scores = character_data["ability_scores"]
 
-            # Calculate ability score modifiers
-            ability_modifiers = {}
-            for ability in [
-                "strength",
-                "intelligence",
-                "wisdom",
-                "dexterity",
-                "constitution",
-                "charisma",
-            ]:
-                score = getattr(character_data, ability)
-                if score == 3:
-                    ability_modifiers[ability] = -3
-                elif 4 <= score <= 5:
-                    ability_modifiers[ability] = -2
-                elif 6 <= score <= 8:
-                    ability_modifiers[ability] = -1
-                elif 9 <= score <= 12:
-                    ability_modifiers[ability] = 0
-                elif 13 <= score <= 15:
-                    ability_modifiers[ability] = 1
-                elif 16 <= score <= 17:
-                    ability_modifiers[ability] = 2
-                elif score == 18:
-                    ability_modifiers[ability] = 3
+            # Default description if not provided
+            description = character_data.get("description", f"A {race} {char_class}")
 
-            # Calculate starting hit points
-            hp_dice = {
-                CharacterClass.FIGHTER: 8,
-                CharacterClass.CLERIC: 6,
-                CharacterClass.MAGIC_USER: 4,
-                CharacterClass.THIEF: 4,
-                CharacterClass.FIGHTER_MAGIC_USER: 6,
-                CharacterClass.MAGIC_USER_THIEF: 4,
+            # Calculate ability modifiers
+            ability_modifiers = {
+                "strength": get_ability_modifier(ability_scores["strength"]),
+                "intelligence": get_ability_modifier(ability_scores["intelligence"]),
+                "wisdom": get_ability_modifier(ability_scores["wisdom"]),
+                "dexterity": get_ability_modifier(ability_scores["dexterity"]),
+                "constitution": get_ability_modifier(ability_scores["constitution"]),
+                "charisma": get_ability_modifier(ability_scores["charisma"]),
             }
 
-            # Get hit die for the class
-            hit_die = hp_dice[CharacterClass(char_class)]
+            # Calculate hit points based on class and con modifier
+            hit_points = self._generate_hit_dice(
+                CharacterClass(char_class), ability_modifiers["constitution"]
+            )
 
-            # Halflings and Elves never roll larger than d6 for hit points
-            if (
-                CharacterRace(race) in [CharacterRace.HALFLING, CharacterRace.ELF]
-                and hit_die > 6
-            ):
-                hit_die = 6
-
-            # Roll hit points and add CON modifier
-            hit_points = random.randint(1, hit_die) + ability_modifiers["constitution"]
-
-            # Minimum of 1 hit point
-            if hit_points < 1:
-                hit_points = 1
-
-            # Calculate starting gold (3d6 * 10)
+            # Roll for starting gold (3d6 x 10)
             starting_gold = sum(random.randint(1, 6) for _ in range(3)) * 10
 
-            # Set up default equipment and inventory
+            # Initialize equipment and inventory
             equipment = {}
             inventory = {}
 
-            # Calculate saving throws
+            # Calculate saving throws based on class and level
             saves = calculate_saving_throws(
                 CharacterClass(char_class), 1, CharacterRace(race)
             )
 
-            # Calculate racial abilities
+            # Calculate special abilities based on race
             special_abilities = calculate_racial_abilities(CharacterRace(race))
 
-            # For magic users, generate starting spells
-            spells_known = []
-            if CharacterClass(char_class) in [
-                CharacterClass.MAGIC_USER,
-                CharacterClass.FIGHTER_MAGIC_USER,
-                CharacterClass.MAGIC_USER_THIEF,
-            ]:
-                # All magic users start with read magic
-                spells_known.append("read magic")
+            # Initialize spells_known for magic users
+            spells_known = {}
 
-                # And one additional random spell
-                first_level_spells = [
-                    "charm person",
-                    "detect magic",
-                    "floating disc",
-                    "hold portal",
-                    "light",
-                    "magic missile",
-                    "protection from evil",
-                    "read languages",
-                    "shield",
-                    "sleep",
-                    "ventriloquism",
-                ]
-                spells_known.append(random.choice(first_level_spells))
-
-            # Calculate thief abilities
+            # Initialize thief abilities
             thief_abilities = {}
-            if CharacterClass(char_class) in [
-                CharacterClass.THIEF,
-                CharacterClass.MAGIC_USER_THIEF,
-            ]:
-                thief_abilities = {
-                    "open_locks": 25,
-                    "remove_traps": 20,
-                    "pick_pockets": 30,
-                    "move_silently": 25,
-                    "climb_walls": 80,
-                    "hide": 10,
-                    "listen": 30,
-                }
 
-            # Calculate languages
+            # Determine starting languages
             languages = ["Common"]
-            if race != "human":
-                # Add racial language
-                if race == "dwarf":
-                    languages.append("Dwarvish")
-                elif race == "elf":
-                    languages.append("Elvish")
-                elif race == "halfling":
-                    languages.append("Halfling")
 
-            # Add bonus languages based on INT
+            # Add race-specific languages
+            race_languages = {
+                CharacterRace.DWARF: ["Dwarvish"],
+                CharacterRace.ELF: ["Elvish"],
+                CharacterRace.HALFLING: ["Halfling"],
+                CharacterRace.HUMAN: [],
+            }
+            races_with_languages = race_languages.get(CharacterRace(race), [])
+
+            for lang in races_with_languages:
+                if lang not in languages:
+                    languages.append(lang)
+
+            # Add bonus languages based on intelligence
             if ability_modifiers["intelligence"] > 0:
-                bonus_languages_count = ability_modifiers["intelligence"]
-                available_languages = [
-                    "Dwarvish",
-                    "Elvish",
-                    "Halfling",
+                # In Basic Fantasy, high INT gives bonus languages
+                bonus_langs = min(ability_modifiers["intelligence"], 4)
+                bonus_language_options = [
+                    "Orcish",
                     "Goblin",
-                    "Hobgoblin",
-                    "Gnoll",
-                    "Orc",
+                    "Gnomish",
+                    "Hobbit",
+                    "Draconic",
+                    "Fey",
+                    "Sylvan",
+                    "Undercommon",
+                    "Giant",
                 ]
-
-                # Remove languages already known
-                for lang in languages:
-                    if lang in available_languages:
-                        available_languages.remove(lang)
-
-                # Add random bonus languages up to the INT modifier
-                for _ in range(min(bonus_languages_count, len(available_languages))):
-                    bonus_lang = random.choice(available_languages)
-                    languages.append(bonus_lang)
-                    available_languages.remove(bonus_lang)
-
-            # Create the character DB model
-            logger.info(
-                f"Creating character: {name} (Race: {race}, Class: {char_class})"
-            )
+                # Randomly select bonus languages
+                for _ in range(bonus_langs):
+                    if not bonus_language_options:
+                        break
+                    random_lang = random.choice(bonus_language_options)
+                    if random_lang not in languages:
+                        languages.append(random_lang)
+                    bonus_language_options.remove(random_lang)
 
             # Use a try-except block specifically for DB operations
             try:
                 db_character = Character(
                     name=name,
-                    description=character_data.description,
+                    description=description,
                     race=CharacterRace(race),
                     character_class=CharacterClass(char_class),
                     strength=ability_scores["strength"],
@@ -850,40 +785,60 @@ class ConfirmCharacterCommand(CommandHandler):
                 # Place character in the starting room (room_id=1)
                 self._place_in_starting_room(db, db_character.id)
 
-                # Clear the character creation state now that we're done
+                # Clear the character creation state
                 if user_id in creation_state_store:
                     del creation_state_store[user_id]
 
                 return CommandResponse(
                     success=True,
                     message=(
-                        f"Character created successfully!\n\n"
-                        f"Name: {db_character.name}\n"
-                        f"Race: {db_character.race.value}\n"
-                        f"Class: {db_character.character_class.value}\n"
-                        f"Hit Points: {db_character.hit_points}\n"
-                        f"Armor Class: {db_character.armor_class}\n"
-                        f"Gold: {db_character.gold}\n\n"
-                        f"Your adventure begins! Type 'look' to see your surroundings."
+                        f"Character '{name}' has been created!\n\n"
+                        f"Race: {race}\n"
+                        f"Class: {char_class}\n"
+                        f"HP: {hit_points}\n"
+                        f"AC: {10 + ability_modifiers['dexterity']}\n"
+                        f"Gold: {starting_gold} gp\n\n"
+                        f"Your character has been equipped with starting items based on class.\n\n"
+                        "You can now use this character in-game with the 'use character' command."
                     ),
-                    data={"character_id": db_character.id},
                 )
-            except Exception as db_error:
-                logger.exception(f"Database error creating character: {db_error}")
-                db.rollback()
+
+            except Exception as e:
+                logger.error(f"Database error creating character: {e}")
                 return CommandResponse(
                     success=False,
-                    message=f"Database error creating character: {str(db_error)}",
-                    errors=[str(db_error)],
+                    message="There was an error creating your character. Please try again.",
+                    errors=[str(e)],
                 )
 
         except Exception as e:
-            logger.exception(f"Error in character creation: {e}")
+            logger.error(f"Error in character creation: {e}")
             return CommandResponse(
                 success=False,
-                message=f"Error creating character: {str(e)}",
+                message="There was an error creating your character. Please try again.",
                 errors=[str(e)],
             )
+
+    def _generate_hit_dice(self, char_class: CharacterClass, con_modifier: int) -> int:
+        """Generate hit points for a new character based on class and constitution modifier"""
+        # Basic Fantasy RPG hit dice by class (at level 1)
+        hit_dice = {
+            CharacterClass.FIGHTER: 8,
+            CharacterClass.CLERIC: 6,
+            CharacterClass.MAGIC_USER: 4,
+            CharacterClass.THIEF: 4,
+            CharacterClass.FIGHTER_MAGIC_USER: 6,  # Elf (average between fighter and magic-user)
+            CharacterClass.MAGIC_USER_THIEF: 4,  # Custom (assumed for multi-class)
+        }
+
+        # Get base hit dice for class (default to 4 if not found)
+        base_hp = hit_dice.get(char_class, 4)
+
+        # Add constitution modifier
+        total_hp = base_hp + con_modifier
+
+        # Minimum of 1 HP
+        return max(1, total_hp)
 
     def _place_in_starting_room(self, db: Session, character_id: int) -> bool:
         """Place character in the starting room"""

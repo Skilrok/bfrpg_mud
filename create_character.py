@@ -124,7 +124,7 @@ def try_character_creation_command(token, character_name):
 if __name__ == "__main__":
     # Default login credentials
     username = "admin"
-    password = "admin123"
+    password = "password123"
     character_name = "Adventurer"
 
     # Allow character name override from command line
@@ -139,7 +139,7 @@ if __name__ == "__main__":
         character_data = {
             "name": character_name,
             "race": "human",
-            "character_class": "fighter",
+            "character_class": "cleric",
             "level": 1,
             "hit_points": 10,
             "strength": 16,

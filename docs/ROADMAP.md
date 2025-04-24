@@ -36,16 +36,16 @@ Each phase includes:
 - [x] Prod: PostgreSQL, Docker deployment
 
 ## Phase 2: User & Authentication System ⚔️
-🎯 **Goal**: Implement user accounts and authentication ✅
+🎯 **Goal**: Implement user accounts and authentication ⚠️ (Partially Working)
 
 🔧 **Key Tasks**:
 - [x] User Management
   - [x] Create UserAccount model
   - [x] Implement password hashing
   - [x] Set up JWT token system
-- [x] Authentication Endpoints
+- [~] Authentication Endpoints
   - [x] Login endpoint (/api/auth/token)
-  - [x] Register endpoint
+  - [~] Register endpoint (Issues: UserCreate object missing model_dump method)
   - [x] Logout endpoint
 - [x] Session Management
   - [x] Token validation
@@ -54,15 +54,15 @@ Each phase includes:
 
 ✅ **Deliverables**:
 - [x] Secure authentication system
-- [x] User login flow
+- [~] User login flow (Working but issues with form-based auth)
 - [x] Protected route middleware
-- [x] User registration
-- [x] Comprehensive test suite for auth system
+- [~] User registration (Has issues with Pydantic model compatibility)
+- [~] Comprehensive test suite for auth system (Some tests failing)
 - [x] Password reset functionality
 
 🧪 **Environment Strategy**:
 - [x] Dev: Local DB with test accounts
-- [x] Test: Automated auth testing
+- [~] Test: Automated auth testing (Some issues)
 - [ ] Prod: Secure user management (Not Started)
 
 ## Phase 3: Character System 🧙
@@ -121,11 +121,11 @@ Each phase includes:
 - [x] Implementation of basic commands
 - [x] Extensible command registration system
 - [x] Command history and recall
-- [x] Comprehensive test suite for command system
+- [~] Comprehensive test suite for command system (Some tests incomplete or missing)
 
 🧪 **Environment Strategy**:
 - [x] Dev: Command testing sandbox
-- [x] Test: Automated command validation
+- [~] Test: Automated command validation (Some issues)
 - [ ] Prod: Command telemetry and monitoring
 
 ## Phase 5: UI Shell 🎮
@@ -137,16 +137,16 @@ Each phase includes:
   - [x] Component specifications
   - [x] Accessibility requirements
 - [x] Basic HTML/CSS Implementation
-  - [x] Command input area
-  - [x] Text output display
-  - [x] Status panels
-  - [x] Login and registration page
+  - [x] Command input area (Working, tests passing)
+  - [x] Text output display (Working, tests passing)
+  - [x] Status panels (Working, tests passing)
+  - [x] Login and registration page (Form submission fixed)
 - [x] Interactive Features
-  - [x] Command history navigation
-  - [x] Terminal-style interface with scanline effects
-  - [x] Character information sidebar
+  - [x] Command history navigation (Working, tests passing)
+  - [x] Terminal-style interface with scanline effects (Working, tests passing)
+  - [x] Character information sidebar (Working, tests passing)
   - [x] Real-time updates
-  - [x] Dark/light mode toggle
+  - [x] Dark/light mode toggle (Implemented and working)
 - [x] WebSocket Integration
   - [x] Initial WebSocket connection setup
   - [x] Connection management
@@ -154,103 +154,103 @@ Each phase includes:
   - [x] Real-time updates
 
 ✅ **Deliverables**:
-- [x] Working text-based UI
-- [x] Login and registration interface
-- [x] Terminal-style game interface
-- [x] Command input with history
+- [x] Working text-based UI (Tests passing)
+- [x] Login and registration interface (Form submission fixed)
+- [x] Terminal-style game interface (Working properly)
+- [x] Command input with history (Working, tests passing)
 - [x] Real-time text output
-- [x] Settings persistence
+- [x] Settings persistence (Theme preference saved in localStorage)
 
 🧪 **Environment Strategy**:
-- [x] Dev: Local UI testing
-- [x] Test: Basic test suite for UI components
-- [x] Test: Cross-browser validation
+- [x] Dev: Local UI testing (Tests passing)
+- [x] Test: Basic test suite for UI components (Tests fixed and passing)
+- [~] Test: Cross-browser validation (Not fully tested)
 - [ ] Prod: Performance monitoring
 
 ## Phase 6: Combat System ⚔️
-🎯 **Goal**: Implement BFRPG turn-based combat mechanics (In Progress)
+🎯 **Goal**: Implement BFRPG turn-based combat mechanics ⚠️ (Partially Complete)
 
 🔧 **Key Tasks**:
-- [x] Combat Mechanics
-  - [x] Initiative system
-  - [x] Attack rolls
-  - [x] Damage calculation
-  - [x] Status effects
-- [x] Monster Implementation
+- [~] Combat Mechanics
+  - [~] Initiative system (Not fully tested)
+  - [~] Attack rolls (Not fully tested)
+  - [~] Damage calculation (Not fully tested)
+  - [~] Status effects (Not fully tested)
+- [~] Monster Implementation
   - [x] Monster models
-  - [x] AI behavior
-  - [x] Encounter generation
-- [x] Equipment Integration
+  - [~] AI behavior (Not fully tested)
+  - [~] Encounter generation (Not fully tested)
+- [~] Equipment Integration
   - [x] Weapon damage
   - [x] Armor class calculation
-  - [x] Item effects
+  - [~] Item effects (Not fully tested)
 
 ✅ **Deliverables**:
-- [x] Working turn-based combat system
-- [x] Monster encounters
-- [x] Combat logging
-- [x] Death and resurrection mechanics
+- [~] Working turn-based combat system (Not fully tested)
+- [~] Monster encounters (Not fully tested)
+- [~] Combat logging (Not fully tested)
+- [~] Death and resurrection mechanics (Not fully tested)
 
 🧪 **Environment Strategy**:
-- [x] Dev: Combat simulation tools
-- [x] Test: Automated combat tests
+- [~] Dev: Combat simulation tools (Partially implemented)
+- [~] Test: Automated combat tests (Some issues or incomplete)
 - [ ] Prod: Combat analytics
 
 ## Phase 7: Room & Navigation System 🌍
-🎯 **Goal**: Implement room and navigation systems (In Progress)
+🎯 **Goal**: Implement room and navigation systems ⚠️ (Partially Working)
 
 🔧 **Key Tasks**:
-- [x] Room System
-  - [x] 25x25 grid implementation
+- [~] Room System
+  - [~] 25x25 grid implementation (Basic structure present but issues)
   - [x] Room model (ID, description, exits)
-  - [x] State persistence
-- [x] Navigation
-  - [x] Movement commands
-  - [x] Room discovery
-  - [x] Exit validation
-- [ ] Content Integration
+  - [~] State persistence (NOT NULL constraint issues with character_locations)
+- [~] Navigation
+  - [~] Movement commands (Look command works, but movement may have issues)
+  - [~] Room discovery (Room information retrieval works)
+  - [~] Exit validation (Not fully functional)
+- [~] Content Integration
   - [ ] Basic Fantasy module support
   - [x] Room descriptions
-  - [x] Initial dungeon setup
+  - [~] Initial dungeon setup (Partial)
 
 ✅ **Deliverables**:
-- [x] Functional navigation system
-- [x] Room state management
-- [x] Basic dungeon implementation
+- [~] Functional navigation system (Look works, movement has issues)
+- [~] Room state management (Character location persistence has issues)
+- [~] Basic dungeon implementation (Partial)
 - [x] GET /rooms/{id} returns complete room info
-- [x] Navigation command suite passes multiplayer test
+- [~] Navigation command suite passes multiplayer test (Not fully tested)
 
 🧪 **Environment Strategy**:
-- [x] Dev: Test dungeon layout
-- [x] Test: Navigation validation
+- [~] Dev: Test dungeon layout (Basic structure present)
+- [~] Test: Navigation validation (Some issues)
 - [ ] Prod: Full module implementation
 
 ## Phase 8: Content Pipeline 📚
-🎯 **Goal**: Create tools for loading and managing game content (In Progress)
+🎯 **Goal**: Create tools for loading and managing game content ⚠️ (Partially Complete)
 
 🔧 **Key Tasks**:
 - [x] Content Definition
   - [x] JSON/YAML schemas for game entities
   - [x] Validation rules
   - [x] Relationship mapping
-- [x] Import/Export Tools
+- [~] Import/Export Tools
   - [x] Static content import
   - [x] Database seeding
-  - [x] Content backup
-- [ ] Content Generation
+  - [~] Content backup (Not fully tested)
+- [~] Content Generation
   - [ ] AI-assisted room descriptions
-  - [x] Procedural dungeon generation
+  - [~] Procedural dungeon generation (Not fully tested)
   - [ ] NPC dialogue templates
 
 ✅ **Deliverables**:
 - [x] Content schema definitions
-- [x] Import/export utilities
+- [~] Import/export utilities (Import works, export not fully tested)
 - [x] Seed data for testing
-- [x] Content validation tools
+- [~] Content validation tools (Not fully tested)
 
 🧪 **Environment Strategy**:
 - [x] Dev: Local content tools
-- [x] Test: Validation of imported content
+- [~] Test: Validation of imported content (Partial)
 - [ ] Prod: Content management system
 
 ## Phase 9: Multiplayer & Real-time Communication 👥
@@ -261,10 +261,10 @@ Each phase includes:
   - [x] Connection management
   - [x] Event broadcasting
   - [x] Client authentication
-- [x] Chat System
-  - [x] Global chat
-  - [x] Room-specific chat
-  - [x] Private messaging
+- [~] Chat System
+  - [~] Global chat (Partially functional)
+  - [~] Room-specific chat (Not fully tested)
+  - [~] Private messaging (Not fully tested)
 - [x] Real-time Events
   - [x] Combat notifications
   - [x] Player movement updates
@@ -272,13 +272,13 @@ Each phase includes:
 
 ✅ **Deliverables**:
 - [x] Functional WebSocket server
-- [x] Real-time chat system
+- [~] Real-time chat system (Partially tested)
 - [x] Event broadcasting system
-- [x] Player presence indicators
+- [~] Player presence indicators (Not fully tested)
 
 🧪 **Environment Strategy**:
 - [x] Dev: WebSocket testing tools
-- [x] Test: Simulated multi-user scenarios
+- [~] Test: Simulated multi-user scenarios (Partial)
 - [ ] Prod: Scalable WebSocket deployment
 
 ## Phase 10: Hireling & Companion System 🧝
@@ -310,7 +310,7 @@ Each phase includes:
 - [ ] Prod: Hireling analytics
 
 ## Phase 11: Game Balance & Progression 📊
-🎯 **Goal**: Ensure balanced gameplay and meaningful progression (In Progress)
+🎯 **Goal**: Ensure balanced gameplay and meaningful progression ⚠️ (Partially Complete)
 
 🔧 **Key Tasks**:
 - [x] Experience System
@@ -321,44 +321,44 @@ Each phase includes:
   - [x] Class-based advancement tables
   - [x] Ability improvements
   - [x] Skill progression
-- [x] Economy Balance
-  - [x] Item value adjustments
-  - [x] Gold sinks
-  - [x] Trading system
+- [~] Economy Balance
+  - [~] Item value adjustments (Not fully tested)
+  - [~] Gold sinks (Not fully tested)
+  - [~] Trading system (Not fully tested)
 
 ✅ **Deliverables**:
-- [x] Balanced XP progression
-- [x] Fair combat challenge ratings
-- [x] Sustainable in-game economy
-- [x] Meaningful character advancement
+- [~] Balanced XP progression (Not fully tested)
+- [~] Fair combat challenge ratings (Not fully tested)
+- [~] Sustainable in-game economy (Not fully tested)
+- [~] Meaningful character advancement (Not fully tested)
 
 🧪 **Environment Strategy**:
-- [x] Dev: Balance testing tools
-- [x] Test: Progression simulations
+- [~] Dev: Balance testing tools (Partially implemented)
+- [~] Test: Progression simulations (Partially tested)
 - [ ] Prod: Telemetry dashboards
 
 ## Phase T: Testing Infrastructure & Coverage (Ongoing) 🧪
 🎯 **Goal**: Maintain and improve testing across all systems
 
 🔧 **Key Tasks**:
-- [x] Test Setup Improvements
-  - [x] Fix database isolation issues
-  - [x] Improve test suite organization
-  - [x] Standardize test patterns
-- [ ] Coverage Expansion
-  - [ ] Integration tests for key workflows
+- [~] Test Setup Improvements
+  - [~] Fix database isolation issues (Some issues remain with character_locations)
+  - [~] Improve test suite organization (Partial)
+  - [~] Standardize test patterns (Partial)
+- [~] Coverage Expansion
+  - [~] Integration tests for key workflows (Some missing or failing)
   - [ ] Add mutation tests for inventory/combat
-  - [ ] API contract validation
-- [ ] Test Data Management
-  - [ ] Automate seeding of test dungeon state
-  - [ ] Create test fixtures for game entities
-  - [ ] Implement reset procedures
+  - [~] API contract validation (Partial)
+- [~] Test Data Management
+  - [~] Automate seeding of test dungeon state (Partial)
+  - [~] Create test fixtures for game entities (Some available)
+  - [~] Implement reset procedures (Partial)
 
 ✅ **Deliverables**:
-- [x] Improved test isolation
-- [ ] Comprehensive test coverage
-- [ ] Automated test reports
-- [ ] Performance benchmarks
+- [~] Improved test isolation (Some issues remain)
+- [~] Comprehensive test coverage (Incomplete in areas)
+- [~] Automated test reports (Partial)
+- [~] Performance benchmarks (Not fully implemented)
 
 ## Future Considerations 🔮
 - Crafting system
@@ -374,132 +374,88 @@ Each phase includes:
 
 ## Current Status and Next Steps 🚀
 
-### Completed ✅
+### Working ✅
 1. Project foundation and basic infrastructure
-2. Authentication system with JWT
-   - User registration with validation
-   - Login/token generation
-   - Logout functionality
-   - Password hashing with bcrypt
-   - Password reset flow with secure token generation
-3. Database models for User, Character, and Hireling
-4. Hireling system with full test coverage
-5. Containerized application setup with Docker
-6. CI/CD pipeline with GitHub Actions
-7. Comprehensive test suite for authentication system
-8. Character system with BFRPG rules validation
+2. Hireling system with full test coverage
+3. Containerized application setup with Docker
+4. Character system with BFRPG rules validation
    - Character creation with ability score validation
    - Race and class restrictions
    - Character loading and saving
-9. Test suite improvements
-   - Package installation setup for testing
-   - Fixed test database isolation issues
-   - All previously skipped tests now passing
-   - Resolved authentication test issues
-   - Implemented robust database transaction isolation
-   - Fixed Pydantic model conversion in auth router
-   - Fixed hireling tests to work with test database
-10. Inventory system implementation
-    - Item database model and migration
-    - Item type categorization (weapon, armor, etc.)
-    - Character equipment slots
-    - Inventory management endpoints
-    - Starting equipment by character class
-11. UI Design Documentation
-    - Comprehensive UI requirements in PROJECT_REQUIREMENTS.md
-    - Text-based wireframe mockup in UI_WIREFRAME.md
-    - Interface component specifications
-    - Accessibility requirements
-12. Basic UI Implementation
-    - Created HTML/CSS terminal-style interface
-    - Implemented command input with history
-    - Designed responsive layout with dark mode
-13. Pydantic v2 Compatibility
-    - Migrated all schema models from `orm_mode = True` to `from_attributes = True`
-    - Fixed ORM conversion issues in routers
-    - Ensured proper database-to-model transformations
-14. Command System Implementation
-    - Created extensible command registry with decorator-based registration
-    - Implemented command parser with argument handling and quote support
-    - Developed basic command handlers for information, movement, and inventory
-    - Built REST API and WebSocket endpoints for command processing
-    - Added frontend integration for command submission and response display
-15. WebSocket & Multiplayer Infrastructure
-    - Implemented WebSocket server with connection management
-    - Created room-based communication system
-    - Developed chat system with different message types
-    - Added authentication for WebSocket connections
-    - Built real-time event broadcasting architecture
+5. Inventory system implementation
+   - Item database model and migration
+   - Item type categorization (weapon, armor, etc.)
+   - Character equipment slots
+   - Inventory management endpoints
+   - Starting equipment by character class
+6. UI Design Documentation
+7. Command System Implementation
+   - Extensible command registry with decorator-based registration
+   - Command parser with argument handling and quote support
+   - Basic command handlers for information, movement, and inventory
+   - REST API and WebSocket endpoints for command processing
+8. WebSocket & Multiplayer Infrastructure
+   - Connection management
+   - Authentication for WebSocket connections
+   - Real-time event broadcasting architecture
+9. UI Shell Implementation
+   - Text-based game interface with command input and output
+   - Character information sidebar
+   - Command history navigation
+   - Terminal-style interface
+   - Real-time updates through WebSocket
 
-### In Progress 🔄
-1. Authentication System Enhancement
-   - Resolving Pydantic model compatibility issues (UserCreate object missing model_dump method)
-   - Fixing validation errors in API requests
+### Partially Working ⚠️
+1. Authentication System
+   - Pydantic model compatibility issues (UserCreate object missing model_dump method)
+   - Validation errors in API requests
+   - JWT authentication works but has some form-data issues
 2. Room System implementation
-   - Working on 25x25 grid structure
-   - Developing room state persistence
-3. Frontend Improvements
-   - Missing static assets (CSS files, favicon)
-   - Fixing WebSocket endpoint connections
-   - Implementing proper error handling
-4. Technical Debt Resolution
-   - ✅ Fixed ORM configuration issues with Pydantic models (converted orm_mode to from_attributes)
-   - Fixing static file handling inconsistencies
-   - Resolving bcrypt version detection errors
-   - Addressing test suite failures related to SQLite thread safety
+   - Room information display works
+   - Room state persistence has NULL constraint issues
+   - Character location tracking has issues
+3. Settings Persistence
+   - Cross-browser compatibility not fully tested
+
+### Issues to Fix 🔧
+1. **Authentication System Issues**:
+   - Fix UserCreate model for Pydantic compatibility (model_dump issue)
+   - Standardize authentication approach (JSON vs form data)
+2. **Room System Issues**:
+   - Fix character_locations table NULL constraint issue
+   - Complete room navigation implementation
+3. **UI Testing Issues**:
+   - Complete cross-browser testing
 
 ### Next Priorities 📋
 1. **Fix Remaining System Stability Issues**
-   - Resolve Pydantic compatibility issues in auth router (UserCreate model_dump)
-   - Standardize static file serving approach
-   - Fix missing CSS and favicon files
-   - Fix bcrypt version detection warnings
-   - Resolve SQLite thread safety issues in tests
+   - Resolve Pydantic compatibility issues in auth router
+   - Fix character_locations table constraints
 
-2. **Complete Command System Integration**
-   - Connect navigation commands to room database
-   - Implement command broadcasting to other players in same room
-   - Add admin-only commands
-   - Create command shortcuts
+2. **Complete Room & Navigation System**
+   - Fix character location persistence issues
+   - Complete navigation commands and room transitions
+   - Implement proper exit validation
 
-3. **UI Shell Enhancements**
-   - Fix 404 errors for static assets
-   - Complete WebSocket integration for real-time updates
-   - Improve command history and autocompletion
-   - Add settings persistence
+3. **UI Enhancements**
+   - Add mobile-responsive layout improvements
+   - Improve accessibility features
 
-4. **Room & Navigation System**
-   - Finish 25x25 grid implementation
-   - Create room state management
-   - Add navigation commands
-
-5. **Testing Infrastructure**
-   - Address browser-based test failures in GitHub Actions
-   - Fix PostgreSQL test configuration
+4. **Testing Infrastructure**
+   - Address remaining failing tests
    - Expand test coverage to new systems
-   - Implement automated content validation
+   - Fix database transaction isolation issues
 
 ## Timeline Estimates (Updated) 📅
 - Phase 1: ✅ Completed
-- Phase 2: ✅ Completed
+- Phase 2: ⚠️ Partially Completed (Auth issues)
 - Phase 3: ✅ Completed
-  - Character system now complete with inventory management
 - Phase 4: ✅ Completed
-  - Command system implemented with extensible registry
-  - Basic commands for information, movement, and inventory
-  - API endpoints for command processing
-- Phase 5: ✅ Completed
-  - Basic implementation complete with terminal UI
-  - Static file issues need to be resolved
-- Phase 6: 4-5 weeks (Combat System)
-- Phase 7: 4-5 weeks (Room & Navigation System)
-  - 25% complete
-- Phase 8: 2-3 weeks (Content Pipeline)
-- Phase 9: ✅ Completed
-  - WebSocket infrastructure in place
-  - Chat system implemented
-  - Real-time event broadcasting working
-- Phase 10: ✅ Completed
-  - Hireling system fully implemented
-- Phase 11: 2-3 weeks (Polish & Optimization)
-- Phase T: Ongoing 
+- Phase 5: ✅ Completed (UI Shell implementation)
+- Phase 6: ⚠️ Partially Completed (Not fully tested)
+- Phase 7: ⚠️ Partially Completed (Room persistence issues)
+- Phase 8: ⚠️ Partially Completed (Content tools partially working)
+- Phase 9: ✅ Completed (WebSocket functionality)
+- Phase 10: ✅ Completed (Hireling system)
+- Phase 11: ⚠️ Partially Completed (Not fully tested)
+- Phase T: 🔄 Ongoing (Test issues remain)

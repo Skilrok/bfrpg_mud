@@ -3,7 +3,7 @@ import os
 import secrets
 import traceback
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Any, Dict, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -27,6 +27,20 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+
+
+# Helper function for Pydantic v1/v2 compatibility
+def pydantic_to_dict(model, **kwargs) -> Dict[str, Any]:
+    """Convert Pydantic model to dict, supporting both v1 and v2"""
+    try:
+        # Try Pydantic v2 method
+        return model.model_dump(**kwargs)
+    except AttributeError:
+        # Fall back to Pydantic v1 method
+        if "exclude" in kwargs:
+            exclude = kwargs.get("exclude", set())
+            return model.dict(exclude=exclude)
+        return model.dict(**kwargs)
 
 
 def verify_password(plain_password, hashed_password):
@@ -199,7 +213,7 @@ async def register_user(user: schemas.UserCreate, db: Session = Depends(get_db))
             )
 
         # Create user data dict and exclude password_confirm
-        user_data = user.model_dump(exclude={"password_confirm"})
+        user_data = pydantic_to_dict(user, exclude={"password_confirm"})
 
         # Create new user with hashed password
         hashed_password = get_password_hash(user.password)
@@ -354,7 +368,7 @@ async def debug_register(db: Session = Depends(get_db)):
         return {
             "success": True,
             "user_data": user_dict,
-            "pydantic_user": pydantic_user.dict(),
+            "pydantic_user": pydantic_to_dict(pydantic_user),
         }
     except Exception as e:
         return {"success": False, "error": str(e), "error_type": str(type(e))}
@@ -364,7 +378,7 @@ async def debug_register(db: Session = Depends(get_db)):
 async def register_user_simple(user: schemas.UserCreate, db: Session = Depends(get_db)):
     """Simplified user registration for testing purposes"""
     # Create user data and exclude password
-    user_data = user.model_dump(exclude={"password_confirm"})
+    user_data = pydantic_to_dict(user, exclude={"password_confirm"})
 
     # Create new user with hashed password
     hashed_password = get_password_hash(user.password)

@@ -6,10 +6,25 @@ from .registry import CommandCategory, CommandRegistry, CommandRequirement, comm
 registry = CommandRegistry()
 
 # Import all commands to register them
-from .basic_commands import *
-from .character_commands import *
-from .look_commands import *
-from .movement_commands import *
+from .basic_commands import (
+    EquipCommand,
+    ExamineCommand,
+    HelpCommand,
+    InventoryCommand,
+    StatsCommand,
+    UnequipCommand,
+)
+from .character_commands import CreateCharacterCommand
+from .look_commands import LookCommand
+from .movement_commands import (
+    DownCommand,
+    EastCommand,
+    GoCommand,
+    NorthCommand,
+    SouthCommand,
+    UpCommand,
+    WestCommand,
+)
 from .social_commands import *
 
 __all__ = [
@@ -21,6 +36,21 @@ __all__ = [
     "CommandRequirement",
     "command",
     "CommandResult",
+    "CreateCharacterCommand",
+    "HelpCommand",
+    "InventoryCommand",
+    "ExamineCommand",
+    "EquipCommand",
+    "UnequipCommand",
+    "StatsCommand",
+    "LookCommand",
+    "NorthCommand",
+    "SouthCommand",
+    "EastCommand",
+    "WestCommand",
+    "UpCommand",
+    "DownCommand",
+    "GoCommand",
 ]
 
 # Import debug command

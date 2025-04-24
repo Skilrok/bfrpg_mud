@@ -135,85 +135,102 @@ class InventoryCommand(CommandHandler):
         inventory_message = "You check your inventory.\n"
         equipped_items = []
         unequipped_items = []
+        inventory_items = []
 
-        # Get a DB session to look up item details
-        db = get_db_context()
-        try:
-            for item_id_str, item_data in inventory.items():
-                try:
-                    item_id = int(item_id_str)
-                    quantity = item_data.get("quantity", 1)
-                    equipped = item_data.get("equipped", False)
-                    slot = item_data.get("slot", None)
+        # Use context manager properly with 'with' statement
+        with get_db_context() as db:
+            try:
+                for item_id_str, item_data in inventory.items():
+                    try:
+                        item_id = int(item_id_str)
+                        quantity = item_data.get("quantity", 1)
+                        equipped = item_data.get("equipped", False)
+                        slot = item_data.get("slot", None)
 
-                    # Look up item details
-                    db_item = db.query(Item).filter(Item.id == item_id).first()
+                        # Look up item details
+                        db_item = db.query(Item).filter(Item.id == item_id).first()
 
-                    if db_item:
-                        item_name = db_item.name
-                        item_description = (
-                            f" - {db_item.description}" if db_item.description else ""
-                        )
-                        quantity_text = f" (x{quantity})" if quantity > 1 else ""
-                        slot_text = f" [{slot}]" if slot else ""
+                        if db_item:
+                            item_name = db_item.name
+                            item_description = (
+                                f" - {db_item.description}"
+                                if db_item.description
+                                else ""
+                            )
+                            quantity_text = f" (x{quantity})" if quantity > 1 else ""
+                            slot_text = f" [{slot}]" if slot else ""
 
-                        item_info = {
-                            "id": item_id,
-                            "name": item_name,
-                            "description": db_item.description,
-                            "quantity": quantity,
-                            "equipped": equipped,
-                            "slot": slot,
-                        }
+                            # Include item_type and other properties
+                            item_info = {
+                                "id": item_id,
+                                "name": item_name,
+                                "description": db_item.description,
+                                "quantity": quantity,
+                                "equipped": equipped,
+                                "slot": slot or db_item.equip_slot,
+                                "item_type": db_item.item_type or "miscellaneous",
+                                "weight": db_item.weight or 0,
+                                "value": db_item.value or 0,
+                                "is_equippable": bool(db_item.is_equippable),
+                                "equip_slot": db_item.equip_slot or "",
+                                "damage": db_item.damage or "",
+                                "armor_class": db_item.armor_class or 0,
+                                "properties": db_item.properties or {},
+                            }
 
-                        item_line = (
-                            f"- {item_name}{quantity_text}{slot_text}{item_description}"
-                        )
+                            item_line = f"- {item_name}{quantity_text}{slot_text}{item_description}"
 
-                        if equipped:
-                            equipped_items.append((item_line, item_info))
+                            if equipped:
+                                equipped_items.append((item_line, item_info))
+                            else:
+                                unequipped_items.append((item_line, item_info))
                         else:
-                            unequipped_items.append((item_line, item_info))
-                    else:
-                        item_info = {
-                            "id": item_id,
-                            "name": f"Unknown Item ({item_id})",
-                            "quantity": quantity,
-                            "equipped": equipped,
-                        }
+                            item_info = {
+                                "id": item_id,
+                                "name": f"Unknown Item ({item_id})",
+                                "quantity": quantity,
+                                "equipped": equipped,
+                            }
 
-                        item_line = f"- Unknown item (ID: {item_id}){' (equipped)' if equipped else ''}"
+                            item_line = f"- Unknown item (ID: {item_id}){' (equipped)' if equipped else ''}"
 
-                        if equipped:
-                            equipped_items.append((item_line, item_info))
-                        else:
-                            unequipped_items.append((item_line, item_info))
-                except Exception as e:
-                    logger.error(
-                        f"Error processing inventory item {item_id_str}: {str(e)}"
-                    )
-                    item_line = f"- Error processing item {item_id_str}"
-                    unequipped_items.append((item_line, {"error": str(e)}))
+                            if equipped:
+                                equipped_items.append((item_line, item_info))
+                            else:
+                                unequipped_items.append((item_line, item_info))
+                    except Exception as e:
+                        logger.error(
+                            f"Error processing inventory item {item_id_str}: {str(e)}"
+                        )
+                        item_line = f"- Error processing item {item_id_str}"
+                        unequipped_items.append((item_line, {"error": str(e)}))
 
-            # Sort equipped items by slot for better organization
-            equipped_items.sort(key=lambda x: x[1].get("slot", "zzz"))
+                # Sort equipped items by slot for better organization
+                equipped_items.sort(key=lambda x: str(x[1].get("slot", "zzz")))
 
-            # Add equipped items first
-            if equipped_items:
-                inventory_message += "\nEquipped items:\n"
-                for item_line, _ in equipped_items:
-                    inventory_message += f"{item_line}\n"
+                # Add equipped items first
+                if equipped_items:
+                    inventory_message += "\nEquipped items:\n"
+                    for item_line, _ in equipped_items:
+                        inventory_message += f"{item_line}\n"
 
-            # Then unequipped items
-            if unequipped_items:
-                inventory_message += "\nIn your backpack:\n"
-                for item_line, _ in unequipped_items:
-                    inventory_message += f"{item_line}\n"
+                # Then unequipped items
+                if unequipped_items:
+                    inventory_message += "\nIn your backpack:\n"
+                    for item_line, _ in unequipped_items:
+                        inventory_message += f"{item_line}\n"
 
-            # Combine items for return data
-            inventory_items = [item[1] for item in equipped_items + unequipped_items]
-        finally:
-            db.close()
+                # Combine items for return data
+                inventory_items = [
+                    item[1] for item in equipped_items + unequipped_items
+                ]
+            except Exception as e:
+                logger.error(f"Error processing inventory: {str(e)}")
+                return CommandResponse(
+                    success=False,
+                    message=f"An error occurred while retrieving your inventory: {str(e)}",
+                    errors=[str(e)],
+                )
 
         return CommandResponse(
             success=True,

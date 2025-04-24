@@ -204,16 +204,13 @@ def create_index_if_not_exists(table_name, index_name, column_name):
                 f"ON {table_name} ({column_name})"
             )
             conn.execute(text(sql))
-            print(
-                f"  - Created index: {index_name} on "
-                f"{table_name}.{column_name}"
-            )
+            print(f"  - Created index: {index_name} on " f"{table_name}.{column_name}")
 
 
 def create_composite_index_if_not_exists(table_name, index_name, column_names):
     """Create a composite index if it doesn't already exist"""
     if not index_exists(table_name, index_name):
-        columns_str = ', '.join(column_names)
+        columns_str = ", ".join(column_names)
         with engine.connect() as conn:
             sql = (
                 f"CREATE INDEX IF NOT EXISTS {index_name} "

@@ -49,6 +49,7 @@
         <div class="game-title">BFRPG MUD</div>
         <div class="user-info">
             <button id="show-characters-btn" class="btn">Characters</button>
+            <button id="theme-toggle" class="btn">Dark Mode</button>
             Logged in as: <span id="username">Unknown</span>
             <button id="logout-btn" class="btn">Logout</button>
         </div>
@@ -225,11 +226,34 @@ Type 'help' for a list of commands.
 
                     <!-- Equipment Section -->
                     <div class="equipment-section">
-                        <div class="section-title">Equipment</div>
-                        <ul class="stats-list" id="equipment-list">
-                            <li>Sword</li>
-                            <li>Shield</li>
-                            <li>Leather Armor</li>
+                        <div class="section-title">Equipped</div>
+                        <div class="equipment-slots">
+                            <div class="slot-group">
+                                <div class="slot-item">
+                                    <span class="slot-name">Head:</span>
+                                    <span class="slot-value" id="slot-head">-</span>
+                                </div>
+                                <div class="slot-item">
+                                    <span class="slot-name">Body:</span>
+                                    <span class="slot-value" id="slot-body">-</span>
+                                </div>
+                                <div class="slot-item">
+                                    <span class="slot-name">Main Hand:</span>
+                                    <span class="slot-value" id="slot-main-hand">-</span>
+                                </div>
+                                <div class="slot-item">
+                                    <span class="slot-name">Off Hand:</span>
+                                    <span class="slot-value" id="slot-off-hand">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Inventory Section -->
+                    <div class="inventory-section">
+                        <div class="section-title">Inventory</div>
+                        <ul class="inventory-list" id="inventory-list">
+                            <!-- Will be dynamically populated -->
                         </ul>
                     </div>
 
@@ -246,6 +270,24 @@ Type 'help' for a list of commands.
                                 </tr>
                             </thead>
                             <tbody id="weapons-list">
+                                <!-- Will be dynamically populated -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Armor Section -->
+                    <div class="armor-section">
+                        <div class="section-title">Armor</div>
+                        <table id="armor-table">
+                            <thead>
+                                <tr>
+                                    <th>Armor</th>
+                                    <th>AC</th>
+                                    <th>Type</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody id="armor-list">
                                 <!-- Will be dynamically populated -->
                             </tbody>
                         </table>

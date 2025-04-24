@@ -335,11 +335,11 @@ def enhance_client_debugging():
             return True
 
         # Find the onmessage handler section with data.command logging
-        target_section = "if (data.command) {\n                        console.log(\"Command processed:\", data.command);\n                    }"
-        
+        target_section = 'if (data.command) {\n                        console.log("Command processed:", data.command);\n                    }'
+
         enhanced_section = """if (data.command) {
                         console.log("Command processed:", data.command);
-                        
+
                         // Enhanced debug for look command
                         if (data.command.name === "look" || data.command.name === "l") {
                             console.log("LOOK COMMAND RESPONSE:", {
@@ -347,7 +347,7 @@ def enhance_client_debugging():
                                 message: data.message,
                                 data: data.data || {}
                             });
-                            
+
                             // Special handling for look command responses
                             if (data.success && data.data) {
                                 // Log room details if available
@@ -382,23 +382,23 @@ def enhance_client_debugging():
 def main():
     """Run all fixes"""
     logger.info("Running WebSocket and command fixes...")
-    
+
     fixes_applied = 0
-    
+
     if fix_websocket_handler():
         fixes_applied += 1
-        
+
     if fix_look_command():
         fixes_applied += 1
-        
+
     if create_debug_command():
         fixes_applied += 1
-    
+
     if enhance_client_debugging():
         fixes_applied += 1
-    
+
     logger.info(f"Applied {fixes_applied} fixes successfully")
-    
+
 
 if __name__ == "__main__":
     main()
