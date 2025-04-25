@@ -3,7 +3,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+# REMOVED: from sqlalchemy.orm import Session
 
 from app.commands import registry as command_registry_commands
 from app.commands.base import CommandContext, CommandHandler, CommandResponse
@@ -280,7 +280,9 @@ class EquipCommand(CommandHandler):
 
     name = "equip"
     aliases = ["wear", "wield"]
-    help_text = "Equip an item from your inventory. Usage: equip <item name>. You can equip weapons (main_hand), armor (body), shields (off_hand), rings, and amulets. Armor and shields will improve your armor class."
+    help_text = ("Equip an item from your inventory. Usage: equip <item name>. "
+                "You can equip weapons (main_hand), armor (body), shields (off_hand), "
+                "rings, and amulets. Armor and shields will improve your armor class.")
 
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # If no character is active, we can't equip

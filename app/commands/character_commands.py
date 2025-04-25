@@ -19,7 +19,7 @@ from app.routers.characters import (
     calculate_saving_throws,
     get_ability_modifier,
 )
-from app.schemas.character import CharacterCreate
+# REMOVED: from app.schemas.character import CharacterCreate
 
 logger = logging.getLogger(__name__)
 
