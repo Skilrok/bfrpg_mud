@@ -1780,7 +1780,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Extract armor info, with fallbacks for different property names
             const name = armor.name || 'Unknown';
-            const ac = armor.armor_class ?? (properties.armor_class ?? 0);
+            
+            // Get AC value - check ac_bonus column first (for shields), then armor_class, then properties
+            let ac = 0;
+            if (armor.item_type === 'shield') {
+                // For shields, prioritize ac_bonus column
+                ac = armor.ac_bonus ?? (properties.ac_bonus ?? 0);
+            } else {
+                // For regular armor
+                ac = armor.armor_class ?? (properties.armor_class ?? 0);
+            }
 
             // Determine armor type
             let type = 'Unknown';

@@ -12,7 +12,7 @@ This project previously stored character inventory and equipment data as JSON fi
 
 ### 1. ORM Relationship Mismatch
 We identified an ORM relationship mismatch between the `Hireling` and `Character` models:
-- `Hireling` model used a relationship called `master` with `back_populates="hirelings"`  
+- `Hireling` model used a relationship called `master` with `back_populates="hirelings"`
 - `Character` model was updated to use a relationship called `hirelings` with `back_populates="character"`
 
 This naming inconsistency led to SQLAlchemy errors. The relationship was fixed by updating the `Hireling` model to use `character` instead of `master`.
@@ -74,14 +74,14 @@ Inspects and fixes case sensitivity issues with enum values by:
 ```python
 class CharacterItem(Base):
     __tablename__ = "character_items"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     character_id = Column(Integer, ForeignKey("characters.id", ondelete="CASCADE"))
     item_id = Column(Integer, ForeignKey("items.id"))
     quantity = Column(Integer, default=1)
     is_equipped = Column(Boolean, default=False)
     equip_slot = Column(String, nullable=True)
-    
+
     # Relationships
     character = relationship("Character", back_populates="items")
     item = relationship("Item")
@@ -114,4 +114,4 @@ The migration to a dedicated `CharacterItem` table provides several benefits:
 - Improved data integrity with proper foreign key constraints
 - Better query performance for inventory operations
 - More flexible equipment management
-- Simplified API logic for inventory manipulation 
+- Simplified API logic for inventory manipulation

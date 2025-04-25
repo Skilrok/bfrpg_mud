@@ -51,4 +51,4 @@ All fixes were verified by:
 1. **Code Standardization**: Standardize on either `user` or `owner` throughout the codebase to avoid confusion
 2. **Migration Update**: Consider updating the database model to match the preferred relationship name in a future migration
 3. **Documentation**: Update documentation to clarify the relationship between characters and users
-4. **Testing**: Add unit tests to verify enum value handling to catch similar issues in the future 
+4. **Testing**: Add unit tests to verify enum value handling to catch similar issues in the future

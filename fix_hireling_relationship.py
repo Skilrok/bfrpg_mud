@@ -5,117 +5,132 @@ Script to fix relationship mismatches between models.
 
 import logging
 import traceback
+
 from sqlalchemy import text
+
 from app.database import get_db_context
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
+
 
 def update_hireling_model():
     """Update the Hireling model file to fix the relationship mismatch"""
     # Path to the Hireling model file
-    model_path = 'app/models/hireling.py'
-    
+    model_path = "app/models/hireling.py"
+
     try:
         # Read the current file
-        with open(model_path, 'r') as f:
+        with open(model_path, "r") as f:
             content = f.read()
-        
+
         # Save a backup
-        with open(f'{model_path}.bak', 'w') as f:
+        with open(f"{model_path}.bak", "w") as f:
             f.write(content)
-            
+
         logger.info(f"Backup created at {model_path}.bak")
-        
+
         # Replace the relationship line
         if 'master = relationship("Character", back_populates="hirelings")' in content:
             new_content = content.replace(
                 'master = relationship("Character", back_populates="hirelings")',
-                'character = relationship("Character", back_populates="hirelings")  # Renamed from master'
+                'character = relationship("Character", back_populates="hirelings")  # Renamed from master',
             )
-            
+
             # Update all references from 'master' to 'character' in the file
             # Be careful to only replace variable references, not strings or comments
-            lines = new_content.split('\n')
+            lines = new_content.split("\n")
             updated_lines = []
-            
+
             for line in lines:
                 # Skip comment lines
-                if line.strip().startswith('#'):
+                if line.strip().startswith("#"):
                     updated_lines.append(line)
                     continue
-                    
+
                 # Replace self.master with self.character
-                if 'self.master' in line:
-                    line = line.replace('self.master', 'self.character')
-                
+                if "self.master" in line:
+                    line = line.replace("self.master", "self.character")
+
                 # Replace master_id with character_id but keep the column name the same
-                if 'master_id' in line and not ('"master_id' in line or "'master_id" in line):
+                if "master_id" in line and not (
+                    '"master_id' in line or "'master_id" in line
+                ):
                     # Only replace references, not the column definition
-                    if not 'Column(' in line:
-                        line = line.replace('master_id', 'character_id')
-                
+                    if not "Column(" in line:
+                        line = line.replace("master_id", "character_id")
+
                 updated_lines.append(line)
-                
-            new_content = '\n'.join(updated_lines)
-            
+
+            new_content = "\n".join(updated_lines)
+
             # Write the updated content
-            with open(model_path, 'w') as f:
+            with open(model_path, "w") as f:
                 f.write(new_content)
-                
-            logger.info(f"Updated {model_path}: renamed 'master' relationship to 'character'")
+
+            logger.info(
+                f"Updated {model_path}: renamed 'master' relationship to 'character'"
+            )
             return True
         else:
-            logger.warning(f"Could not find the expected relationship line in {model_path}")
+            logger.warning(
+                f"Could not find the expected relationship line in {model_path}"
+            )
             return False
-            
+
     except Exception as e:
         logger.error(f"Error updating Hireling model: {str(e)}")
         traceback.print_exc()
         return False
 
+
 def update_user_model():
     """Update the User model to ensure consistent relationship naming"""
     # Path to the User model file - needs to be checked if this is correct
-    model_path = 'app/models/user.py'
-    
+    model_path = "app/models/user.py"
+
     try:
         # Check if file exists
         import os
+
         if not os.path.exists(model_path):
             # Try looking in the main models file
-            model_path = 'app/models.py'
+            model_path = "app/models.py"
             if not os.path.exists(model_path):
                 logger.error(f"Could not find User model at {model_path}")
                 return False
-        
+
         # Read the current file
-        with open(model_path, 'r') as f:
+        with open(model_path, "r") as f:
             content = f.read()
-        
+
         # Save a backup
-        with open(f'{model_path}.bak', 'w') as f:
+        with open(f"{model_path}.bak", "w") as f:
             f.write(content)
-            
+
         logger.info(f"Backup created at {model_path}.bak")
-        
+
         # Look for User model character relationship
         owner_pattern = 'characters = relationship("Character", back_populates="owner")'
         user_pattern = 'characters = relationship("Character", back_populates="user")'
-        
+
         if owner_pattern in content:
             # Fix the relationship to match Character model (user instead of owner)
             new_content = content.replace(
                 owner_pattern,
-                user_pattern + '  # Changed from "owner" to match Character model'
+                user_pattern + '  # Changed from "owner" to match Character model',
             )
-            
+
             # Write the updated content
-            with open(model_path, 'w') as f:
+            with open(model_path, "w") as f:
                 f.write(new_content)
-                
-            logger.info(f"Updated {model_path}: changed back_populates from 'owner' to 'user'")
+
+            logger.info(
+                f"Updated {model_path}: changed back_populates from 'owner' to 'user'"
+            )
             return True
         elif user_pattern in content:
             logger.info(f"User model already has correct relationship naming")
@@ -123,208 +138,243 @@ def update_user_model():
         else:
             logger.warning(f"Could not find character relationship in User model")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error updating User model: {str(e)}")
         traceback.print_exc()
         return False
 
+
 def check_character_model():
     """Check the Character model to identify relationship issues"""
     # Path to the Character model
-    model_path = 'app/models/character.py'
-    
+    model_path = "app/models/character.py"
+
     try:
         # Check if file exists
         import os
+
         if not os.path.exists(model_path):
             # Try looking in the main models file
-            model_path = 'app/models.py'
+            model_path = "app/models.py"
             if not os.path.exists(model_path):
                 logger.error(f"Could not find Character model at {model_path}")
                 return False
-        
+
         # Read the current file
-        with open(model_path, 'r') as f:
+        with open(model_path, "r") as f:
             content = f.read()
-            
+
         # Check for the user relationship
         if 'user = relationship("User", back_populates="characters")' in content:
             logger.info("Character model has correct User relationship")
         elif 'owner = relationship("User", back_populates="characters")' in content:
-            logger.warning("Character model uses 'owner' instead of 'user' for User relationship")
+            logger.warning(
+                "Character model uses 'owner' instead of 'user' for User relationship"
+            )
             logger.info("Consider updating Character model to use 'user' consistently")
-        
+
         # Check for the hireling relationship
         if 'hirelings = relationship("Hireling", back_populates="character"' in content:
             logger.info("Character model has inconsistent Hireling relationship")
             logger.info("Options: 1) Change Hireling.master to Hireling.character, or")
-            logger.info("         2) Change Character.hirelings back_populates to 'master'")
-        
+            logger.info(
+                "         2) Change Character.hirelings back_populates to 'master'"
+            )
+
         return True
-            
+
     except Exception as e:
         logger.error(f"Error checking Character model: {str(e)}")
         traceback.print_exc()
         return False
 
+
 def update_character_owner_to_user():
     """Update the Character model to use 'user' consistently instead of 'owner'"""
     # Path to the Character model
-    model_path = 'app/models/character.py'
-    
+    model_path = "app/models/character.py"
+
     try:
         # Check if file exists
         import os
+
         if not os.path.exists(model_path):
             # Try looking in the main models file
-            model_path = 'app/models.py'
+            model_path = "app/models.py"
             if not os.path.exists(model_path):
                 logger.error(f"Could not find Character model at {model_path}")
                 return False
-        
+
         # Read the current file
-        with open(model_path, 'r') as f:
+        with open(model_path, "r") as f:
             content = f.read()
-        
+
         # Save a backup
-        with open(f'{model_path}.bak', 'w') as f:
+        with open(f"{model_path}.bak", "w") as f:
             f.write(content)
-            
+
         logger.info(f"Backup created at {model_path}.bak")
-        
+
         # Replace owner with user if needed
         if 'owner = relationship("User", back_populates="characters")' in content:
             new_content = content.replace(
                 'owner = relationship("User", back_populates="characters")',
-                'user = relationship("User", back_populates="characters")  # Renamed from owner'
+                'user = relationship("User", back_populates="characters")  # Renamed from owner',
             )
-            
+
             # Update all references from 'owner' to 'user' in the file
-            lines = new_content.split('\n')
+            lines = new_content.split("\n")
             updated_lines = []
-            
+
             for line in lines:
                 # Skip comment lines
-                if line.strip().startswith('#'):
+                if line.strip().startswith("#"):
                     updated_lines.append(line)
                     continue
-                    
+
                 # Replace self.owner with self.user
-                if 'self.owner' in line:
-                    line = line.replace('self.owner', 'self.user')
-                
+                if "self.owner" in line:
+                    line = line.replace("self.owner", "self.user")
+
                 # Replace owner_ with user_ but be careful about strings
-                if 'owner_' in line and not ('"owner_' in line or "'owner_" in line):
-                    line = line.replace('owner_', 'user_')
-                
+                if "owner_" in line and not ('"owner_' in line or "'owner_" in line):
+                    line = line.replace("owner_", "user_")
+
                 updated_lines.append(line)
-                
-            new_content = '\n'.join(updated_lines)
-            
+
+            new_content = "\n".join(updated_lines)
+
             # Write the updated content
-            with open(model_path, 'w') as f:
+            with open(model_path, "w") as f:
                 f.write(new_content)
-                
+
             logger.info(f"Updated {model_path}: renamed 'owner' relationship to 'user'")
             return True
         else:
             logger.info(f"Character model already uses 'user' relationship")
             return True
-            
+
     except Exception as e:
         logger.error(f"Error updating Character model: {str(e)}")
         traceback.print_exc()
         return False
 
+
 def test_relationship():
     """Test that the relationships work correctly after the fix"""
     logger.info("Testing relationships after fixes")
-    
+
     try:
         # Import the models directly to test the relationship
         # We'll use direct SQL queries to avoid ORM issues
         with get_db_context() as db:
             # Test Character-Hireling relationship
             logger.info("Testing Character-Hireling relationship")
-            character = db.execute(text("SELECT id, name FROM characters LIMIT 1")).first()
+            character = db.execute(
+                text("SELECT id, name FROM characters LIMIT 1")
+            ).first()
             if character:
                 char_id, char_name = character
                 logger.info(f"Found character: {char_name} (ID: {char_id})")
-                
+
                 # Count hirelings
-                hirelings_count = db.execute(text(
-                    "SELECT COUNT(*) FROM hirelings WHERE master_id = :char_id"
-                ), {"char_id": char_id}).scalar() or 0
-                
+                hirelings_count = (
+                    db.execute(
+                        text(
+                            "SELECT COUNT(*) FROM hirelings WHERE master_id = :char_id"
+                        ),
+                        {"char_id": char_id},
+                    ).scalar()
+                    or 0
+                )
+
                 logger.info(f"Character has {hirelings_count} hirelings")
-                
+
                 # Check one hireling if available
                 if hirelings_count > 0:
-                    hireling = db.execute(text(
-                        "SELECT id, name FROM hirelings WHERE master_id = :char_id LIMIT 1"
-                    ), {"char_id": char_id}).first()
-                    
+                    hireling = db.execute(
+                        text(
+                            "SELECT id, name FROM hirelings WHERE master_id = :char_id LIMIT 1"
+                        ),
+                        {"char_id": char_id},
+                    ).first()
+
                     if hireling:
                         h_id, h_name = hireling
-                        logger.info(f"Found hireling: {h_name} (ID: {h_id}) for character {char_name}")
-            
+                        logger.info(
+                            f"Found hireling: {h_name} (ID: {h_id}) for character {char_name}"
+                        )
+
             # Test Character-User relationship
             logger.info("Testing Character-User relationship")
-            char_user = db.execute(text(
-                "SELECT c.id, c.name, u.id, u.username FROM characters c JOIN users u ON c.user_id = u.id LIMIT 1"
-            )).first()
-            
+            char_user = db.execute(
+                text(
+                    "SELECT c.id, c.name, u.id, u.username FROM characters c JOIN users u ON c.user_id = u.id LIMIT 1"
+                )
+            ).first()
+
             if char_user:
                 c_id, c_name, u_id, u_name = char_user
-                logger.info(f"Character {c_name} (ID: {c_id}) belongs to user {u_name} (ID: {u_id})")
-            
+                logger.info(
+                    f"Character {c_name} (ID: {c_id}) belongs to user {u_name} (ID: {u_id})"
+                )
+
             logger.info("Relationship tests passed")
             return True
-        
+
     except Exception as e:
         logger.error(f"Error testing relationships: {str(e)}")
         traceback.print_exc()
         return False
 
+
 if __name__ == "__main__":
     import argparse
-    
-    parser = argparse.ArgumentParser(description="Fix relationship mismatches between models")
-    parser.add_argument("--no-update", action="store_true", help="Don't update the model files, just test")
-    parser.add_argument("--check", action="store_true", help="Only check for issues without fixing")
+
+    parser = argparse.ArgumentParser(
+        description="Fix relationship mismatches between models"
+    )
+    parser.add_argument(
+        "--no-update",
+        action="store_true",
+        help="Don't update the model files, just test",
+    )
+    parser.add_argument(
+        "--check", action="store_true", help="Only check for issues without fixing"
+    )
     args = parser.parse_args()
-    
+
     if args.check:
         check_character_model()
     elif not args.no_update:
         fixes_applied = False
-        
+
         # Fix the hireling relationship
         if update_hireling_model():
             logger.info("Hireling model updated successfully")
             fixes_applied = True
         else:
             logger.error("Failed to update Hireling model")
-            
+
         # Fix the user relationship
         if update_user_model():
             logger.info("User model updated successfully")
             fixes_applied = True
         else:
             logger.error("Failed to update User model")
-            
+
         # Fix Character owner to user reference
         if update_character_owner_to_user():
             logger.info("Character model updated successfully")
             fixes_applied = True
-            
+
         if fixes_applied:
             logger.info("Successfully applied relationship fixes")
         else:
             logger.warning("No fixes were applied")
-    
+
     if test_relationship():
         logger.info("Relationship tests passed")
     else:
-        logger.error("Relationship tests failed") 
+        logger.error("Relationship tests failed")

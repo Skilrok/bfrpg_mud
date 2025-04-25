@@ -22,6 +22,11 @@ class ItemCreate(ItemBase):
 class Item(ItemBase):
     """Schema for item responses"""
     id: int
+    damage: Optional[str] = None  # For weapons
+    armor_class: Optional[int] = None  # For armor
+    ac_bonus: Optional[int] = None  # For shields and magic items
+    is_equippable: Optional[bool] = None
+    equip_slot: Optional[str] = None
     
     class Config:
         from_attributes = True
@@ -35,6 +40,11 @@ class ItemUpdate(BaseModel):
     value: Optional[int] = None
     weight: Optional[float] = None
     properties: Optional[Dict[str, Any]] = None
+    ac_bonus: Optional[int] = None
+    armor_class: Optional[int] = None
+    damage: Optional[str] = None
+    is_equippable: Optional[bool] = None
+    equip_slot: Optional[str] = None
     
     class Config:
         from_attributes = True

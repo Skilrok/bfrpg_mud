@@ -118,7 +118,7 @@ def inventory(self):
             "slot": char_item.equip_slot
         }
     return result
-    
+
 @property
 def equipment(self):
     """Get equipment mapping from items relationship"""
@@ -136,9 +136,9 @@ The new CharacterItem model represents items in a character's inventory:
 ```python
 class CharacterItem(Base):
     """Model for items in a character's inventory"""
-    
+
     __tablename__ = "character_items"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     character_id = Column(Integer, ForeignKey("characters.id", ondelete="CASCADE"), nullable=False)
     item_id = Column(Integer, ForeignKey("items.id", ondelete="CASCADE"), nullable=False)
@@ -146,7 +146,7 @@ class CharacterItem(Base):
     is_equipped = Column(Boolean, default=False, nullable=False)
     equip_slot = Column(String, nullable=True)
     notes = Column(Text, nullable=True)
-    
+
     # Relationships
     character = relationship("Character", back_populates="items")
     item = relationship("Item")
@@ -156,4 +156,4 @@ class CharacterItem(Base):
 
 - Update any code that uses `character.inventory` or `character.equipment` to be aware of the new relationship structure
 - Consider adding database constraints to ensure data integrity (one item per equipment slot, etc.)
-- Add tests for the new relationship structure 
+- Add tests for the new relationship structure

@@ -10,7 +10,7 @@ This guide details the migration from the JSON-based inventory system to a relat
    ```bash
    # For SQLite
    cp your_database.db your_database.db.backup
-   
+
    # For PostgreSQL
    pg_dump -U your_user -d your_database > database_backup.sql
    ```
@@ -64,8 +64,8 @@ If equipment items are not showing as equipped:
 2. Check if any items were unequipped due to validation failures.
 3. Run manual fixes using the SQL console if needed:
    ```sql
-   UPDATE character_items 
-   SET is_equipped = 1, equip_slot = 'main_hand' 
+   UPDATE character_items
+   SET is_equipped = 1, equip_slot = 'main_hand'
    WHERE character_id = ? AND item_id = ?;
    ```
 
@@ -76,8 +76,8 @@ If you encounter unique constraint violations:
 1. Verify there aren't duplicate entries for the same character and slot.
 2. Check the unique constraint on equipment slots:
    ```sql
-   SELECT character_id, equip_slot, COUNT(*) 
-   FROM character_items 
+   SELECT character_id, equip_slot, COUNT(*)
+   FROM character_items
    WHERE is_equipped = 1 AND equip_slot IS NOT NULL
    GROUP BY character_id, equip_slot
    HAVING COUNT(*) > 1;
@@ -140,7 +140,7 @@ If you need to roll back the migration:
 - Use eager loading for item details when querying character items:
   ```python
   from sqlalchemy.orm import joinedload
-  
+
   # Fetch character items with item details in one query
   character_items = db.query(models.CharacterItem).options(
       joinedload(models.CharacterItem.item)
@@ -152,13 +152,13 @@ If you need to roll back the migration:
 - For large inventory operations, consider using bulk operations:
   ```python
   from sqlalchemy.dialects.postgresql import insert
-  
+
   # Bulk insert example (PostgreSQL)
   items_to_add = [
       {"character_id": character_id, "item_id": item_id, "quantity": 1}
       for item_id in item_ids
   ]
-  
+
   stmt = insert(models.CharacterItem).values(items_to_add)
   # Use on_conflict_do_update for upsert operations
-  ``` 
+  ```

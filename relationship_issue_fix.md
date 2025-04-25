@@ -55,4 +55,4 @@ The migration itself was successful:
 
 1. Fix the relationship mismatch by updating one of the model files
 2. Run database tests to ensure all relationships work correctly
-3. Update any code that relies on these relationships to ensure consistent naming 
+3. Update any code that relies on these relationships to ensure consistent naming

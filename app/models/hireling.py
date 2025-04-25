@@ -63,7 +63,9 @@ class Hireling(Base):
     is_active = Column(Boolean, default=True)
 
     owner = relationship("User", back_populates="hirelings")
-    character = relationship("Character", back_populates="hirelings")  # Renamed from master
+    character = relationship(
+        "Character", back_populates="hirelings"
+    )  # Renamed from master
 
     def update_loyalty(self, change: float):
         """Update loyalty score with bounds checking"""

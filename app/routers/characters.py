@@ -429,7 +429,9 @@ async def get_character_inventory(
             try:
                 # Get item details from database
                 db_item = (
-                    db.query(models.Item).filter(models.Item.id == char_item.item_id).first()
+                    db.query(models.Item)
+                    .filter(models.Item.id == char_item.item_id)
+                    .first()
                 )
 
                 if db_item:
@@ -531,13 +533,47 @@ async def get_character_journal(
         )
 
 
-@router.get("/{character_id}/hirelings", response_model=List[Dict[str, Any]])
+@router.get("/{character_id}/hirelings", response_model=List[schemas.Hireling])
 async def get_character_hirelings(
+    character_id: int, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)
+):
+    """Get all hirelings associated with a character"""
+    try:
+        # Get the character
+        character = (
+            db.query(models.Character)
+            .filter(
+                models.Character.id == character_id,
+                models.Character.user_id == current_user.id,
+            )
+            .first()
+        )
+        
+        if not character:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, 
+                detail=f"Character with ID {character_id} not found"
+            )
+        
+        # Get hirelings for this character
+        hirelings = db.query(models.Hireling).filter(models.Hireling.character_id == character_id).all()
+        
+        return hirelings
+    except Exception as e:
+        logger.error(f"Error retrieving hirelings for character ID {character_id}: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error retrieving hirelings: {str(e)}",
+        )
+
+
+@router.delete("/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_character(
     character_id: int,
     db: Session = Depends(get_db),
     current_user: schemas.User = Depends(get_current_user),
 ):
-    """Get a character's hired companions/hirelings"""
+    """Delete a character"""
     try:
         # Get the character
         character = (
@@ -555,90 +591,26 @@ async def get_character_hirelings(
                 detail=f"Character with ID {character_id} not found",
             )
 
-        # Get hirelings from database
-        hirelings = (
-            db.query(models.Hireling)
-            .filter(models.Hireling.master_id == character_id)
-            .all()
-        )
-
-        # Convert to response format
-        hireling_list = []
-        for h in hirelings:
-            hireling_list.append(
-                {
-                    "id": h.id,
-                    "name": h.name,
-                    "character_class": h.character_class,
-                    "level": h.level,
-                    "hit_points": h.hit_points,
-                    "max_hit_points": h.max_hit_points,
-                    "description": h.description,
-                    "abilities": h.abilities,
-                }
-            )
-
-        return hireling_list
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error retrieving character hirelings: {str(e)}")
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving character hirelings: {str(e)}",
-        )
-
-
-@router.delete("/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_character(
-    character_id: int,
-    db: Session = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_user),
-):
-    """Delete a character"""
-    try:
-        # Find the character
-        character = (
-            db.query(models.Character)
-            .filter(
-                models.Character.id == character_id,
-                models.Character.user_id == current_user.id,
-            )
-            .first()
-        )
-
-        if not character:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, detail="Character not found"
-            )
-
         # Check for associated resources (like hirelings) that may need cleanup
         hirelings = (
             db.query(models.Hireling)
-            .filter(models.Hireling.master_id == character.id)
+            .filter(models.Hireling.character_id == character.id)
             .all()
         )
 
-        # Update hirelings to no longer be associated with this character
+        # Update hirelings to be available again
         for hireling in hirelings:
-            hireling.master_id = None
-            # Mark them as available again
-            hireling.is_available = True
+            hireling.character_id = None
+            db.add(hireling)
 
         # Delete the character
         db.delete(character)
         db.commit()
 
         return None
-
-    except HTTPException:
-        raise
     except Exception as e:
-        print(f"Error deleting character: {e}")
-        traceback.print_exc()
         db.rollback()
+        logger.error(f"Error deleting character: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error deleting character: {str(e)}",
@@ -905,12 +877,15 @@ def equip_starting_items(character: models.Character):
                     db_item = (
                         db.query(models.Item).filter(models.Item.id == item_id).first()
                     )
-                    if (
-                        db_item
-                        and db_item.properties
-                        and "ac_bonus" in db_item.properties
-                    ):
-                        ac_bonus = db_item.properties["ac_bonus"]
+                    if db_item:
+                        # First try to use the ac_bonus column
+                        if db_item.ac_bonus is not None:
+                            ac_bonus = db_item.ac_bonus
+                            logger.debug(f"Using ac_bonus column value: {ac_bonus}")
+                        # Fall back to properties if column is None
+                        elif db_item.properties and "ac_bonus" in db_item.properties:
+                            ac_bonus = db_item.properties["ac_bonus"]
+                            logger.debug(f"Using properties ac_bonus value: {ac_bonus}")
                         if slot == "body" and db_item.item_type.value == "armor":
                             # Armor replaces base AC
                             base_ac = ac_bonus

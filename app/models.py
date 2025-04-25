@@ -94,7 +94,7 @@ class Character(Base):
     user_id = Column(Integer, ForeignKey("users.id"))
 
     owner = relationship("User", back_populates="characters")
-    hirelings = relationship("Hireling", back_populates="master")
+    hirelings = relationship("Hireling", back_populates="character")
     command_history = relationship(
         "CommandHistory",
         back_populates="character",
@@ -117,10 +117,10 @@ class Hireling(Base):
     last_payment_date = Column(DateTime, nullable=True)
     days_unpaid = Column(Integer, default=0)
     user_id = Column(Integer, ForeignKey("users.id"))
-    master_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
+    character_id = Column(Integer, ForeignKey("characters.id"), nullable=True)
 
     owner = relationship("User", back_populates="hirelings")
-    master = relationship("Character", back_populates="hirelings")
+    character = relationship("Character", back_populates="hirelings")
 
     def update_loyalty(self, change: float) -> None:
         """Update hireling loyalty with bounds checking"""

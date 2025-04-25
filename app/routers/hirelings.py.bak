@@ -155,7 +155,7 @@ async def hire_hireling(
         if hireling is None:
             raise HTTPException(status_code=404, detail="Hireling not found")
 
-        hireling.character_id = character_id
+        hireling.master_id = character_id
         hireling.is_available = False
         db.commit()
         db.refresh(hireling)
@@ -190,7 +190,7 @@ async def dismiss_hireling(
         if hireling is None:
             raise HTTPException(status_code=404, detail="Hireling not found")
 
-        hireling.character_id = None
+        hireling.master_id = None
         hireling.is_available = True
         db.commit()
         db.refresh(hireling)

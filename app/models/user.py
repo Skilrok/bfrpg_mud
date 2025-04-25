@@ -18,7 +18,9 @@ class User(Base):
     reset_token = Column(String, nullable=True)
     reset_token_expiry = Column(DateTime, nullable=True)
 
-    characters = relationship("Character", back_populates="user")  # Changed from "owner" to match Character model
+    characters = relationship(
+        "Character", back_populates="user"
+    )  # Changed from "owner" to match Character model
     hirelings = relationship("Hireling", back_populates="owner")
     command_history = relationship(
         "CommandHistory",
