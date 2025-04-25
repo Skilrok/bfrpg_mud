@@ -1,7 +1,7 @@
 # 📜 Project Requirements Document
-**Project Title:** BFRPG MUD  
-**Created by:** [Your Name]  
-**Last updated:** 2025-04-17  
+**Project Title:** BFRPG MUD
+**Created by:** [Your Name]
+**Last updated:** 2025-04-17
 
 ---
 
@@ -133,7 +133,7 @@ This project seeks to revive the classic feel of text-based dungeon exploration 
 
 - Combat resolution must be deterministic and based strictly on BFRPG rules
 - Mapping is intended to be external (paper or third-party tool)
-- AI tools (like ChatGPT or Cursor) are permitted for development, not gameplay 
+- AI tools (like ChatGPT or Cursor) are permitted for development, not gameplay
 
 ---
 
@@ -191,4 +191,4 @@ This project seeks to revive the classic feel of text-based dungeon exploration 
 - Optional simple tile representation of nearby rooms
 - Customizable themes
 - Exportable character sheets
-- Simple dice visualization for combat rolls 
+- Simple dice visualization for combat rolls

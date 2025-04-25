@@ -90,6 +90,35 @@ class CharacterCreate(CharacterBase):
                 
         return v
 
+class CharacterItemBase(BaseModel):
+    """Base schema for character items"""
+    item_id: int
+    quantity: int = 1
+    is_equipped: bool = False
+    equip_slot: Optional[str] = None
+    notes: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+class CharacterItem(CharacterItemBase):
+    """Schema for character item responses"""
+    id: int
+    character_id: int
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
+class CharacterItemCreate(CharacterItemBase):
+    """Schema for creating character items"""
+    character_id: int
+    
+    class Config:
+        from_attributes = True
+        orm_mode = True
+
 class Character(CharacterBase):
     """Schema for character responses with full details"""
     id: int
@@ -107,7 +136,10 @@ class Character(CharacterBase):
     save_dragon_breath: int
     save_spells: int
     
-    # Equipment and inventory as JSON
+    # Character items relationship
+    items: Optional[List[CharacterItem]] = []
+    
+    # Legacy equipment and inventory as JSON (computed as properties)
     equipment: Dict[str, Any] = Field(default_factory=dict)
     inventory: Dict[str, Any] = Field(default_factory=dict)
     
@@ -117,6 +149,33 @@ class Character(CharacterBase):
     class Config:
         from_attributes = True
         orm_mode = True  # For compatibility with older Pydantic
+        
+        @classmethod
+        def get_properties(cls, obj):
+            # This is how we add computed properties in Pydantic v1
+            data = super().get_properties(obj)
+            
+            # Compute equipment
+            equipment_dict = {}
+            if hasattr(obj, 'items') and obj.items:
+                for item in obj.items:
+                    if item.is_equipped and item.equip_slot:
+                        equipment_dict[item.equip_slot] = item.item_id
+            data["equipment"] = equipment_dict
+            
+            # Compute inventory
+            inventory_dict = {}
+            if hasattr(obj, 'items') and obj.items:
+                for item in obj.items:
+                    inventory_dict[str(item.item_id)] = {
+                        "item_id": item.item_id,
+                        "quantity": item.quantity,
+                        "equipped": item.is_equipped,
+                        "slot": item.equip_slot
+                    }
+            data["inventory"] = inventory_dict
+            
+            return data
 
 class CharacterUpdate(BaseModel):
     """Schema for character updates"""

@@ -1,5 +1,6 @@
 from app.models.base import JSON_TYPE, Base
 from app.models.character import Character, CharacterClass, CharacterRace
+from app.models.character_item import CharacterItem
 from app.models.combat import CombatEncounter, CombatParticipant
 from app.models.command import CommandHistory
 from app.models.discovery import RoomDiscovery

@@ -132,3 +132,75 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - Basic Fantasy Role-Playing Game (BFRPG) creators and community
 - Contributors to the project
+
+# BFRPG MUD Inventory System Migration
+
+This document outlines the migration from JSON-based inventory to a relational database model.
+
+## Overview
+
+This migration moves character inventory data from JSON fields (`inventory` and `equipment`) to a proper relational table structure using the `CharacterItem` model. This improves the database design and enables better querying, validation, and data integrity.
+
+## Migration Steps
+
+1. **Run the Alembic migration to create the `character_items` table:**
+   ```
+   alembic upgrade a35b9c72e451
+   ```
+
+2. **Run the migration script to transfer data:**
+   ```
+   python migrate_character_inventory.py
+   ```
+
+3. **Run the migration to remove the redundant columns:**
+   ```
+   alembic upgrade b92c7e53a612
+   ```
+
+## Technical Changes
+
+1. **New Model**: Added `CharacterItem` model representing items in a character's inventory
+2. **API Updates**: Updated all inventory-related endpoints to use the new model
+3. **Backward Compatibility**: Added property methods on `Character` model to maintain backward compatibility with legacy code
+4. **Schema Updates**: Updated the Pydantic schemas to work with the new model
+5. **Database Structure**: Removed redundant JSON columns from the `characters` table
+
+## New Model Structure
+
+The new `CharacterItem` model contains these fields:
+- `id`: Primary key
+- `character_id`: Foreign key to characters table
+- `item_id`: Foreign key to items table
+- `quantity`: Number of this item owned
+- `is_equipped`: Boolean indicating if item is equipped
+- `equip_slot`: The equipment slot if equipped (e.g., "main_hand", "body", etc.)
+- `notes`: Optional text notes about the item
+- `created_at`/`updated_at`: Timestamps
+
+## Benefits
+
+1. **Data Integrity**: Foreign key constraints ensure references are valid
+2. **Query Performance**: Improved query performance for inventory operations
+3. **Maintainability**: Cleaner code with proper separation of concerns
+4. **Validation**: Better data validation and type safety
+5. **Extensibility**: Easier to extend with additional item-related features
+
+## API Changes
+
+All inventory-related endpoints now use the `CharacterItem` model:
+- `/api/items/inventory/{character_id}/add`: Add an item to inventory
+- `/api/items/inventory/{character_id}/remove`: Remove an item from inventory
+- `/api/items/inventory/{character_id}/equip`: Equip an item
+- `/api/items/inventory/{character_id}/unequip`: Unequip an item
+- `/api/items/inventory/{character_id}`: Get character's inventory
+- `/api/characters/{character_id}/inventory`: Get character's inventory for UI
+
+## Verification
+
+Run the verification separately with:
+```
+python migrate_character_inventory.py --verify
+```
+
+This will compare the old and new inventory data to ensure everything was migrated correctly.

@@ -103,16 +103,6 @@ class Character(Base):
                 "slot": char_item.equip_slot
             }
         return result
-        
-    @property
-    def owner(self):
-        """Backward compatibility property for user relationship"""
-        return self.user
-        
-    @owner.setter
-    def owner(self, value):
-        """Setter for backward compatibility"""
-        self.user = value
     
     @inventory.setter
     def inventory(self, value):

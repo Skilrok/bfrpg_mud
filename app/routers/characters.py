@@ -414,20 +414,22 @@ async def get_character_inventory(
                 detail=f"Character with ID {character_id} not found",
             )
 
+        # Get character items
+        char_items = (
+            db.query(models.CharacterItem)
+            .filter(models.CharacterItem.character_id == character_id)
+            .all()
+        )
+
         # Convert inventory from internal format to UI format
         inventory_list = []
 
-        # Get inventory data
-        inventory = character.inventory or {}
-
         # Process each inventory item
-        for item_id_str, item_data in inventory.items():
+        for char_item in char_items:
             try:
-                item_id = int(item_id_str)
-
                 # Get item details from database
                 db_item = (
-                    db.query(models.Item).filter(models.Item.id == item_id).first()
+                    db.query(models.Item).filter(models.Item.id == char_item.item_id).first()
                 )
 
                 if db_item:
@@ -438,9 +440,9 @@ async def get_character_inventory(
                             "name": db_item.name,
                             "description": db_item.description,
                             "item_type": db_item.item_type,
-                            "quantity": item_data.get("quantity", 1),
-                            "equipped": item_data.get("equipped", False),
-                            "slot": item_data.get("slot", None),
+                            "quantity": char_item.quantity,
+                            "equipped": char_item.is_equipped,
+                            "slot": char_item.equip_slot,
                             "value": db_item.value,
                             "weight": db_item.weight,
                             "properties": db_item.properties or {},
@@ -450,29 +452,27 @@ async def get_character_inventory(
                     # Item exists in inventory but not in database - add minimal info
                     inventory_list.append(
                         {
-                            "id": item_id,
-                            "name": f"Unknown Item ({item_id})",
+                            "id": char_item.item_id,
+                            "name": f"Unknown Item ({char_item.item_id})",
                             "description": "Item details not found",
-                            "quantity": item_data.get("quantity", 1),
-                            "equipped": item_data.get("equipped", False),
+                            "quantity": char_item.quantity,
+                            "equipped": char_item.is_equipped,
+                            "slot": char_item.equip_slot,
                         }
                     )
             except Exception as item_error:
                 logger.warning(
-                    f"Error processing inventory item {item_id_str}: {str(item_error)}"
+                    f"Error processing inventory item {char_item.item_id}: {str(item_error)}"
                 )
                 # Continue processing other items
 
         return inventory_list
 
-    except HTTPException:
-        raise
     except Exception as e:
-        logger.error(f"Error retrieving character inventory: {str(e)}")
-        traceback.print_exc()
+        logger.error(f"Error getting character inventory: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error retrieving character inventory: {str(e)}",
+            detail="Failed to retrieve inventory",
         )
 
 
@@ -916,10 +916,14 @@ def equip_starting_items(character: models.Character):
                             base_ac = ac_bonus
                         elif slot == "off_hand" and db_item.item_type.value == "shield":
                             # Shield adds to AC
-                            base_ac += ac_bonus  # In ascending AC system, higher is better
+                            base_ac += (
+                                ac_bonus  # In ascending AC system, higher is better
+                            )
 
             # Apply dexterity modifier
-            character.armor_class = base_ac + dex_mod  # Higher is better in ascending AC system
+            character.armor_class = (
+                base_ac + dex_mod
+            )  # Higher is better in ascending AC system
 
             logger.info(
                 f"Equipped slots: {equipped_slots} for character {character.id}"

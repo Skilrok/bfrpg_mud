@@ -81,7 +81,7 @@ def check_character_ac(character_name):
                     print(f"Item: {item.name} is marked as equipped in slot: {item_data.get('slot')}")
         
         # Calculate what the AC should be
-        base_ac = 10
+        base_ac = 10  # Default base AC
         for slot, item_id in equipment.items():
             item = db.query(models.Item).filter(models.Item.id == item_id).first()
             if item and item.properties:
@@ -94,10 +94,10 @@ def check_character_ac(character_name):
                 
                 elif slot == "off_hand" and item.item_type.value == "shield":
                     if "ac_bonus" in item.properties:
-                        base_ac += item.properties["ac_bonus"]  # Higher is better in ascending AC
+                        base_ac -= item.properties["ac_bonus"]  # Lower is better
         
         # Apply dex modifier
-        expected_ac = base_ac + dex_mod
+        expected_ac = base_ac - dex_mod
         
         print(f"\nExpected AC calculation:")
         print(f"Base AC from equipment: {base_ac}")

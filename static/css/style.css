@@ -1,0 +1,14 @@
+/* Highlight effect for changed values */
+.highlight-change {
+    background-color: rgba(255, 255, 0, 0.5); /* Yellow highlight */
+    transition: background-color 1s ease-out;
+    border-radius: 3px;
+    padding: 2px 4px;
+    animation: pulse 2s ease-in-out;
+}
+
+@keyframes pulse {
+    0% { background-color: transparent; }
+    50% { background-color: rgba(255, 255, 0, 0.5); }
+    100% { background-color: transparent; }
+} 

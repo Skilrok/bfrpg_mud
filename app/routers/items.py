@@ -130,37 +130,38 @@ async def add_item_to_inventory(
     if db_item is None:
         raise HTTPException(status_code=404, detail="Item not found")
     
-    # Get current inventory or initialize empty dict if None
-    inventory = db_character.inventory or {}
+    # Check if character already has this item
+    existing_item = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.item_id == add_item.item_id,
+        models.CharacterItem.is_equipped == False  # Only match non-equipped items for stacking
+    ).first()
     
-    # Convert to dict if it's not already (handling potential JSONified data)
-    if not isinstance(inventory, dict):
-        inventory = dict(inventory)
-    
-    # Add or update item in inventory
-    item_id_str = str(add_item.item_id)
-    if item_id_str in inventory:
-        inventory[item_id_str]["quantity"] += add_item.quantity
+    if existing_item:
+        # Update quantity of existing item
+        existing_item.quantity += add_item.quantity
+        db.add(existing_item)
     else:
-        inventory[item_id_str] = {
-            "item_id": add_item.item_id,
-            "quantity": add_item.quantity,
-            "equipped": False,
-            "slot": None
-        }
+        # Create new character item
+        new_item = models.CharacterItem(
+            character_id=character_id,
+            item_id=add_item.item_id,
+            quantity=add_item.quantity,
+            is_equipped=False
+        )
+        db.add(new_item)
     
-    # Explicitly update the character's inventory
-    db_character.inventory = inventory
-    
-    # Manual flushing to ensure it's in the transaction
-    db.flush()
+    # Commit changes
     db.commit()
-    
-    # Refresh from database to get the updated data
     db.refresh(db_character)
     
-    # Sanity check - raise an error if the item wasn't added
-    if item_id_str not in db_character.inventory:
+    # Verify the item was added
+    added_item = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.item_id == add_item.item_id
+    ).first()
+    
+    if not added_item:
         raise HTTPException(
             status_code=500, 
             detail=f"Failed to add item {add_item.item_id} to inventory - database didn't update"
@@ -186,33 +187,25 @@ async def remove_item_from_inventory(
     if db_character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     
-    # Get current inventory
-    inventory = db_character.inventory or {}
+    # Find the character item
+    db_char_item = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.item_id == remove_item.item_id
+    ).first()
     
-    # Check if the item is in the inventory
-    item_id_str = str(remove_item.item_id)
-    if item_id_str not in inventory:
+    if db_char_item is None:
         raise HTTPException(status_code=404, detail="Item not found in inventory")
     
     # Update quantity or remove item
-    if inventory[item_id_str]["quantity"] > remove_item.quantity:
-        inventory[item_id_str]["quantity"] -= remove_item.quantity
+    if db_char_item.quantity > remove_item.quantity:
+        # Reduce quantity
+        db_char_item.quantity -= remove_item.quantity
+        db.add(db_char_item)
     else:
-        # If item is equipped, remove it from equipment
-        if inventory[item_id_str].get("equipped", False):
-            equipment = db_character.equipment or {}
-            for slot, equipped_item in list(equipment.items()):
-                if str(equipped_item) == item_id_str:
-                    equipment.pop(slot)
-                    break
-            db_character.equipment = equipment
-            
-        # Remove item from inventory
-        inventory.pop(item_id_str)
+        # Remove item completely
+        db.delete(db_char_item)
     
-    # Update character's inventory
-    db_character.inventory = inventory
-    
+    # Commit changes
     db.commit()
     db.refresh(db_character)
     return db_character
@@ -235,19 +228,13 @@ async def equip_item(
     if db_character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     
-    # Get inventory and equipment
-    inventory = db_character.inventory or {}
-    equipment = db_character.equipment or {}
+    # Find the character item
+    db_char_item = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.item_id == equip_request.item_id
+    ).first()
     
-    # Convert to dict if needed
-    if not isinstance(inventory, dict):
-        inventory = dict(inventory)
-    if not isinstance(equipment, dict):
-        equipment = dict(equipment)
-    
-    # Check if the item is in inventory
-    item_id_str = str(equip_request.item_id)
-    if item_id_str not in inventory:
+    if db_char_item is None:
         raise HTTPException(status_code=404, detail="Item not found in inventory")
     
     # Get the item type to validate slot
@@ -271,32 +258,37 @@ async def equip_item(
             detail=f"Invalid slot '{equip_request.slot}' for item type '{db_item.item_type}'"
         )
     
+    # Check if something is already equipped in that slot
+    current_equipped = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.is_equipped == True,
+        models.CharacterItem.equip_slot == equip_request.slot
+    ).first()
+    
     # If something is already equipped in that slot, unequip it
-    if equip_request.slot in equipment:
-        old_item_id = equipment[equip_request.slot]
-        old_item_id_str = str(old_item_id)
-        if old_item_id_str in inventory:
-            inventory[old_item_id_str]["equipped"] = False
-            inventory[old_item_id_str]["slot"] = None
+    if current_equipped:
+        current_equipped.is_equipped = False
+        current_equipped.equip_slot = None
+        db.add(current_equipped)
     
-    # Update equipment
-    equipment[equip_request.slot] = equip_request.item_id
+    # Update the item to equip it
+    db_char_item.is_equipped = True
+    db_char_item.equip_slot = equip_request.slot
+    db.add(db_char_item)
     
-    # Update inventory item as equipped
-    inventory[item_id_str]["equipped"] = True
-    inventory[item_id_str]["slot"] = equip_request.slot
-    
-    # Explicitly update character
-    db_character.equipment = equipment
-    db_character.inventory = inventory
-    
-    # Save changes
-    db.flush()
+    # Commit changes
     db.commit()
     db.refresh(db_character)
     
     # Verify equipment was updated
-    if equip_request.slot not in db_character.equipment or db_character.equipment[equip_request.slot] != equip_request.item_id:
+    verification = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.item_id == equip_request.item_id,
+        models.CharacterItem.is_equipped == True,
+        models.CharacterItem.equip_slot == equip_request.slot
+    ).first()
+    
+    if not verification:
         raise HTTPException(
             status_code=500,
             detail="Failed to equip item - equipment data not updated"
@@ -322,47 +314,36 @@ async def unequip_item(
     if db_character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     
-    # Get inventory and equipment
-    inventory = db_character.inventory or {}
-    equipment = db_character.equipment or {}
+    # Find the equipped item in the specified slot
+    db_char_item = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.is_equipped == True,
+        models.CharacterItem.equip_slot == slot
+    ).first()
     
-    # Convert to dict if needed
-    if not isinstance(inventory, dict):
-        inventory = dict(inventory)
-    if not isinstance(equipment, dict):
-        equipment = dict(equipment)
-    
-    # Check if there's an item in that slot
-    if slot not in equipment:
+    if db_char_item is None:
         raise HTTPException(status_code=404, detail=f"No item equipped in slot {slot}")
     
-    # Get the item ID
-    item_id = equipment[slot]
-    item_id_str = str(item_id)
+    # Unequip the item
+    db_char_item.is_equipped = False
+    db_char_item.equip_slot = None
+    db.add(db_char_item)
     
-    # Remove from equipment - create a new dict instead of modifying
-    new_equipment = dict(equipment)
-    del new_equipment[slot]
-    
-    # Update inventory item as unequipped
-    if item_id_str in inventory:
-        inventory[item_id_str]["equipped"] = False
-        inventory[item_id_str]["slot"] = None
-    
-    # Update character with the new dictionaries
-    db_character.equipment = new_equipment
-    db_character.inventory = inventory
-    
-    # Save changes
-    db.flush()
+    # Commit changes
     db.commit()
     db.refresh(db_character)
     
-    # Verify equipment was updated - with more flexible check
-    if db_character.equipment and slot in db_character.equipment:
+    # Verify unequip was successful
+    verification = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id,
+        models.CharacterItem.is_equipped == True,
+        models.CharacterItem.equip_slot == slot
+    ).first()
+    
+    if verification:
         raise HTTPException(
             status_code=500,
-            detail="Failed to unequip item - equipment data not updated"
+            detail="Failed to unequip item - item is still equipped"
         )
     
     return db_character
@@ -385,15 +366,19 @@ async def get_inventory(
     if db_character is None:
         raise HTTPException(status_code=404, detail="Character not found")
     
-    # Get inventory and equipment
-    inventory = db_character.inventory or {}
+    # Get character items
+    char_items = db.query(models.CharacterItem).filter(
+        models.CharacterItem.character_id == character_id
+    ).all()
+    
+    # Convert to legacy inventory format for compatibility
+    inventory = {}
     
     # If detailed information is requested, fetch all item details
     if include_details:
-        result = {}
-        for item_id_str, item_data in inventory.items():
-            item_id = int(item_id_str)
-            db_item = db.query(models.Item).filter(models.Item.id == item_id).first()
+        for char_item in char_items:
+            item_id_str = str(char_item.item_id)
+            db_item = db.query(models.Item).filter(models.Item.id == char_item.item_id).first()
             
             if db_item:
                 item_details = {
@@ -404,13 +389,20 @@ async def get_inventory(
                     "value": db_item.value,
                     "weight": db_item.weight,
                     "properties": db_item.properties,
-                    "quantity": item_data["quantity"],
-                    "equipped": item_data.get("equipped", False),
-                    "slot": item_data.get("slot", None)
+                    "quantity": char_item.quantity,
+                    "equipped": char_item.is_equipped,
+                    "slot": char_item.equip_slot
                 }
-                result[item_id_str] = item_details
-        
-        return result
+                inventory[item_id_str] = item_details
+    else:
+        # Basic inventory without detailed item info
+        for char_item in char_items:
+            item_id_str = str(char_item.item_id)
+            inventory[item_id_str] = {
+                "item_id": char_item.item_id,
+                "quantity": char_item.quantity,
+                "equipped": char_item.is_equipped,
+                "slot": char_item.equip_slot
+            }
     
-    # Otherwise just return the basic inventory
     return inventory
