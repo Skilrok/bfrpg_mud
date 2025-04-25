@@ -374,77 +374,36 @@ Each phase includes:
 
 ## Current Status and Next Steps 🚀
 
-### Working ✅
-1. Project foundation and basic infrastructure
-2. Hireling system with full test coverage
-3. Containerized application setup with Docker
-4. Character system with BFRPG rules validation
-   - Character creation with ability score validation
-   - Race and class restrictions
-   - Character loading and saving
-5. Inventory system implementation
-   - Item database model and migration
-   - Item type categorization (weapon, armor, etc.)
-   - Character equipment slots
-   - Inventory management endpoints
-   - Starting equipment by character class
-6. UI Design Documentation
-7. Command System Implementation
-   - Extensible command registry with decorator-based registration
-   - Command parser with argument handling and quote support
-   - Basic command handlers for information, movement, and inventory
-   - REST API and WebSocket endpoints for command processing
-8. WebSocket & Multiplayer Infrastructure
-   - Connection management
-   - Authentication for WebSocket connections
-   - Real-time event broadcasting architecture
-9. UI Shell Implementation
-   - Text-based game interface with command input and output
-   - Character information sidebar
-   - Command history navigation
-   - Terminal-style interface
-   - Real-time updates through WebSocket
+**Completed Phases:**
+- ✅ Project Foundation & Infrastructure
+- ✅ User & Authentication System (Core)
+- ✅ Character System (Core) 
+- ✅ Command System (Core)
+- ✅ UI Shell (Basic)
+- ✅ Room & Navigation System (Core)
+- ✅ Entity Component System (Initial Implementation)
+- ✅ Inventory System (migrated to relational database model with CharacterItem table)
+- ✅ Hireling & Companion System (Core, with proper character relationships - renamed master_id to character_id)
 
-### Partially Working ⚠️
-1. Authentication System
-   - Pydantic model compatibility issues (UserCreate object missing model_dump method)
-   - Validation errors in API requests
-   - JWT authentication works but has some form-data issues
-2. Room System implementation
-   - Room information display works
-   - Room state persistence has NULL constraint issues
-   - Character location tracking has issues
-3. Settings Persistence
-   - Cross-browser compatibility not fully tested
+**Partially Completed / Ongoing Phases:**
+- 🔄 Combat System (50%)
+- 🔄 Content Pipeline (30%)
+- 🔄 Multiplayer & Real-time Communication (30%)
+- 🔄 Game Balance & Progression (20%)
+- 🔄 Testing Infrastructure & Coverage (60%)
 
-### Issues to Fix 🔧
-1. **Authentication System Issues**:
-   - Fix UserCreate model for Pydantic compatibility (model_dump issue)
-   - Standardize authentication approach (JSON vs form data)
-2. **Room System Issues**:
-   - Fix character_locations table NULL constraint issue
-   - Complete room navigation implementation
-3. **UI Testing Issues**:
-   - Complete cross-browser testing
+**Current Focus Areas:**
+1. Fixing API endpoints and authentication issues
+2. Completing database migration with Alembic
+3. Adding comprehensive test coverage
+4. Improving room system's character location persistence
+5. Documenting all systems and endpoints
 
-### Next Priorities 📋
-1. **Fix Remaining System Stability Issues**
-   - Resolve Pydantic compatibility issues in auth router
-   - Fix character_locations table constraints
-
-2. **Complete Room & Navigation System**
-   - Fix character location persistence issues
-   - Complete navigation commands and room transitions
-   - Implement proper exit validation
-
-3. **UI Enhancements**
-   - Add mobile-responsive layout improvements
-   - Improve accessibility features
-
-4. **Testing Infrastructure**
-   - Address remaining failing tests
-   - Expand test coverage to new systems
-   - Fix database transaction isolation issues
+**Next Major Phases:**
+- Complete Combat System
+- Expand Content Pipeline
+- Enhance Multiplayer Experience
+- Implement Community & Social Features
 
 ## Timeline Estimates (Updated) 📅
 - Phase 1: ✅ Completed
