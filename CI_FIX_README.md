@@ -10,13 +10,13 @@ Our pre-commit hooks are failing due to several issues:
 2. **Unused imports** (F401)
 3. **Line length issues** (E501)
 4. **Bare except statements** (E722)
-5. **Other flake8 issues**
+5. **String formatting issues** that cause parsing errors in black
 
 ## Fix Process
 
-We've created two scripts to help fix these issues:
+We've created scripts to help fix these issues:
 
-1. `fix_ci_issues.py` - Formats all Python files using black and isort
+1. `fix_selected_files.py` - Formats files one by one using black and isort
 2. `fix_flake8_issues.py` - Fixes common flake8 issues like unused imports and bare excepts
 
 ### Step 1: Install Required Tools
@@ -27,68 +27,78 @@ Make sure you have the required Python packages installed:
 pip install black isort flake8
 ```
 
-### Step 2: Run the Formatting Script
+### Step 2: Manually Fix Parsing Issues
 
-Run the first script to format all Python files in the project:
+Before running the formatters, check for and fix string concatenation issues:
+
+1. Look for lines containing `" +` followed by strings on the next line
+2. Replace these with proper multiline strings or single strings
+3. Example fix:
+   ```python
+   # Before:
+   logger.info(
+       " +
+       "This is a broken string"with concatenation issues"
+   )
+   
+   # After:
+   logger.info(
+       "This is a fixed string with concatenation issues"
+   )
+   ```
+
+### Step 3: Run the File-by-File Formatting Script
+
+Run the script to format files one at a time:
 
 ```bash
-python fix_ci_issues.py
+python fix_selected_files.py
 ```
 
-This will run `black` and `isort` on all Python files, making them consistent with the code style requirements.
+This approach is better than trying to format all files at once, as it allows us to:
+- Process files individually
+- See which specific files are failing
+- Fix issues incrementally
 
-### Step 3: Fix Flake8 Issues
+### Step 4: Fix Flake8 Issues
 
-Run the second script to fix common flake8 issues:
+For files that pass basic formatting, run the flake8 fix script:
 
 ```bash
 python fix_flake8_issues.py
 ```
 
-This script will:
-- Remove unused imports
-- Fix bare except statements
-- Attempt to break long lines
+### Step 5: Review and Test
 
-### Step 4: Review Changes
+1. Review the changes with `git diff`
+2. Run a test commit to see if pre-commit hooks pass:
+   ```bash
+   git add -A
+   git commit -m "Test commit after fixes"
+   ```
 
-Review the changes made by the scripts before committing:
+## Long-Term Solutions
 
-```bash
-git diff
-```
+To maintain clean code moving forward:
 
-### Step 5: Manually Fix Remaining Issues
-
-Some issues may need manual fixing:
-
-1. **Complex line length issues** - The script may not be able to fix all long lines
-2. **F-string missing placeholders** (F541) - These need manual review
-3. **E712** (comparison to True/False) - Replace `if x == True` with `if x is True` or just `if x`
-
-### Step 6: Test Commit
-
-Try a test commit to see if the pre-commit hooks pass:
-
-```bash
-git add -A
-git commit -m "Test commit after fixes"
-```
-
-If this passes without errors, the fixes were successful!
-
-## Ongoing Maintenance
-
-To maintain clean code and avoid future CI/CO issues:
-
-1. **Use an IDE with linting** - Configure VSCode, PyCharm, etc. to show linting errors
-2. **Run pre-commit manually** before committing:
+1. **Use an IDE with linting** - Configure VSCode, PyCharm, etc. to show formatting issues in real time
+2. **Run pre-commit manually** during development:
    ```bash
    pre-commit run --all-files
    ```
-3. **Fix issues as you code** rather than letting them accumulate
+3. **Add CI checks** to enforce code standards in pull requests
 
 ## Common Errors and Fixes
+
+### String Concatenation Issues
+- Replace `" + "string"` patterns with properly formatted strings
+- For long strings, use parentheses to get implicit line continuation:
+  ```python
+  long_string = (
+      "This is a very long string that will be "
+      "automatically concatenated by Python"
+  )
+  ```
 
 ### F401 (Unused Import)
 - Remove the unused import
@@ -97,7 +107,6 @@ To maintain clean code and avoid future CI/CO issues:
 ### E501 (Line too long)
 - Break the line at a logical point
 - Use Python's implicit line continuation within parentheses, brackets, or braces
-- Use explicit line continuation with backslashes (less preferred)
 
 ### E722 (Bare except)
 - Replace `except:` with `except Exception:`
