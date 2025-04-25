@@ -30,7 +30,8 @@ def fix_look_command():
 
         # Add a comment to mark it as debugged
         modified = content.replace(
-            "async def _look_at_room(self, db: Session, character_id: int) -> CommandResponse:",
+            " +
+            "async def _look_at_room(self, db: Session, character_id:"int) -> CommandResponse:",
             """async def _look_at_room(self, db: Session, character_id: int) -> CommandResponse:
         # DEBUG ADDED
         import logging
@@ -102,7 +103,8 @@ def fix_websocket():
         # Add debugging to command handling
         if "async def handle_command_message" in content:
             modified = content.replace(
-                "async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):",
+                " +
+            "async def handle_command_message(self, websocket:"WebSocket, message: dict, session_data: dict):",
                 """async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):
         # DEBUG ADDED TO WEBSOCKET
         import logging

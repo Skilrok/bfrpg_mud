@@ -5,7 +5,7 @@ Revises: 8453f32b9c7d, bc21e44d1b9a, merge_heads
 Create Date: 2024-09-23
 
 """
-from alembic import op
+# REMOVED: from alembic import op
 import sqlalchemy as sa
 
 

@@ -415,7 +415,7 @@ async def get_room_exits(
         try:
             get_current_admin_user(current_user)
             is_admin = True
-        except:
+        except Exception:
             pass
 
         if not include_hidden and not is_admin:
@@ -494,7 +494,7 @@ async def get_room_items(
         try:
             get_current_admin_user(current_user)
             is_admin = True
-        except:
+        except Exception:
             pass
 
         if not include_hidden and not is_admin:

@@ -37,7 +37,8 @@ def stamp_version(revision="head"):
 def main():
     """Main entry point for the script."""
     parser = argparse.ArgumentParser(
-        description="Stamp the database with an Alembic revision without running migrations."
+        description=" +
+            "Stamp the database with an Alembic revision without"running migrations."
     )
     parser.add_argument(
         "--revision",

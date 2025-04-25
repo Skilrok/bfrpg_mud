@@ -3,13 +3,15 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from sqlalchemy import text
-# REMOVED: from sqlalchemy.orm import Session
 
 from app.commands import registry as command_registry_commands
 from app.commands.base import CommandContext, CommandHandler, CommandResponse
 from app.commands.registry import command_registry
 from app.database import get_db_context
 from app.models import Area, Character, Exit, Item, Room, User
+
+# REMOVED: from sqlalchemy.orm import Session
+
 
 logger = logging.getLogger(__name__)
 
@@ -280,9 +282,11 @@ class EquipCommand(CommandHandler):
 
     name = "equip"
     aliases = ["wear", "wield"]
-    help_text = ("Equip an item from your inventory. Usage: equip <item name>. "
-                "You can equip weapons (main_hand), armor (body), shields (off_hand), "
-                "rings, and amulets. Armor and shields will improve your armor class.")
+    help_text = (
+        "Equip an item from your inventory. Usage: equip <item name>. "
+        "You can equip weapons (main_hand), armor (body), shields (off_hand), "
+        "rings, and amulets. Armor and shields will improve your armor class."
+    )
 
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         # If no character is active, we can't equip
@@ -542,10 +546,23 @@ class EquipCommand(CommandHandler):
                 else:
                     message += f"equip {db_item.name}."
 
+                # Return updated character data along with the equipped item info
                 return CommandResponse(
                     success=True,
                     message=message,
-                    data={"equipped_item": found_item_id},
+                    data={
+                        "equipped_item": found_item_id,
+                        "character": {
+                            "id": character.id,
+                            "name": character.name,
+                            "armor_class": character.armor_class,
+                            "hit_points": character.hit_points,
+                            "equipment": character.equipment,
+                            "level": character.level,
+                            "race": character.race,
+                            "character_class": character.character_class
+                        }
+                    },
                 )
             except Exception as e:
                 logger.exception(f"Error in EquipCommand: {e}")
@@ -771,10 +788,23 @@ class UnequipCommand(CommandHandler):
                 else:
                     message = f"You unequip {db_item.name}."
 
+                # Return updated character data along with the unequipped item info
                 return CommandResponse(
                     success=True,
                     message=message,
-                    data={"unequipped_item": found_item_id},
+                    data={
+                        "unequipped_item": found_item_id,
+                        "character": {
+                            "id": character.id,
+                            "name": character.name,
+                            "armor_class": character.armor_class,
+                            "hit_points": character.hit_points,
+                            "equipment": character.equipment,
+                            "level": character.level,
+                            "race": character.race,
+                            "character_class": character.character_class
+                        }
+                    },
                 )
             except Exception as e:
                 logger.exception(f"Error in UnequipCommand: {e}")

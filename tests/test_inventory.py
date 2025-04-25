@@ -1,8 +1,9 @@
-import json
+# REMOVED: import json
 import os
-import random
-import shutil
-import string
+
+# REMOVED: import random
+# REMOVED: import shutil
+# REMOVED: import string
 import threading
 from datetime import datetime, timedelta
 
@@ -69,7 +70,7 @@ def test_db():
             engine.dispose()
             if os.path.exists(TEST_DB_FILE):
                 os.remove(TEST_DB_FILE)
-        except:
+        except Exception:
             pass  # Might fail if file is locked
 
 

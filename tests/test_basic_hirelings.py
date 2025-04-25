@@ -115,7 +115,7 @@ def teardown_module(module):
     try:
         if os.path.exists(TEST_DB_PATH):
             os.remove(TEST_DB_PATH)
-    except:
+    except Exception:
         pass  # File might still be locked on Windows
 
 

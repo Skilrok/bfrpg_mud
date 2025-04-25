@@ -1,4 +1,4 @@
-import json
+# REMOVED: import json
 import logging
 import os
 from datetime import datetime
@@ -402,7 +402,7 @@ def debug_websocket():
         logger.info(f"WebSocket files found: {ws_files}")
 
         # Check if the WebSocketManager is properly importing commands
-        from app.websockets import WebSocketManager
+        # REMOVED:         from app.websockets import WebSocketManager
 
         logger.info("WebSocketManager imported successfully")
 

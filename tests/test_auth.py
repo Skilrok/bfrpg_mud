@@ -1,9 +1,10 @@
+# REMOVED: import os
+from datetime import datetime, timedelta
+from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
-from datetime import datetime, timedelta
-from typing import Optional
-import os
 
 # Test secret key - DO NOT USE IN PRODUCTION
 TEST_SECRET_KEY = "test_secret_key_for_testing_only"

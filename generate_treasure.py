@@ -4,21 +4,23 @@ Generate treasure based on Basic Fantasy RPG SRD treasure tables.
 This script can be used to generate treasure for monsters based on their treasure table codes.
 """
 
-import json
+# REMOVED: import json
 import os
 import random
 import sys
-from enum import Enum
+
+# REMOVED: from enum import Enum
 from typing import Dict, List, Optional, Tuple, Union
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from sqlalchemy.orm import Session
+# REMOVED: from sqlalchemy.orm import Session
 
 from app.database import SessionLocal, get_db_context
 from app.models.item import Item, ItemType
-from app.models.npc import NPC
+
+# REMOVED: from app.models.npc import NPC
 
 # Treasure table definitions based on SRD
 # Format: {chance_of_appearing: [dice_count, dice_type, multiplier]}
@@ -901,7 +903,7 @@ def add_treasure_to_database(treasure: Dict, owner_id: int, session) -> None:
     """Add the generated treasure to the database."""
     import uuid
 
-    from sqlalchemy import func
+    # REMOVED:     from sqlalchemy import func
 
     from app.models.inventory import Inventory, InventoryItem
     from app.models.item import Item, ItemType
@@ -1067,10 +1069,10 @@ def main():
     """Main function to test treasure generation."""
     import sys
 
-    from sqlalchemy import create_engine
+    # REMOVED:     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
 
-    from app.models.base import Base
+    # REMOVED:     from app.models.base import Base
 
     if len(sys.argv) < 2:
         print("Usage: python generate_treasure.py <treasure_code> [monster_id]")

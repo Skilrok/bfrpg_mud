@@ -73,7 +73,8 @@ def fix_character_inventory(character_name, force_update=False):
                 print("Hand Axe successfully added to inventory!")
             else:
                 print(
-                    "ERROR: Hand Axe NOT added to inventory! This indicates a JSON serialization issue."
+                    " +
+            "ERROR: Hand Axe NOT added to inventory! This indicates a"JSON serialization issue."
                 )
 
                 # Try an alternative approach with explicit type casting

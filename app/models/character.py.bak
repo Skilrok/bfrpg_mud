@@ -1,6 +1,5 @@
 import datetime
 import enum
-import typing
 
 from sqlalchemy import (
     Boolean,
@@ -15,6 +14,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import JSON_TYPE, Base
+
+# REMOVED: import typing
 
 
 class CharacterRace(str, enum.Enum):
@@ -75,20 +76,38 @@ class Character(Base):
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+    updated_at = Column(
+        DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow
+    )
 
     # Relationships
     user = relationship("User", back_populates="characters")
-    location = relationship("CharacterLocation", back_populates="character", uselist=False)
-    journal_entries = relationship("JournalEntry", back_populates="character", cascade="all, delete-orphan")
-    discovered_rooms = relationship("RoomDiscovery", back_populates="character", cascade="all, delete-orphan")
-    spells = relationship("CharacterSpell", back_populates="character", cascade="all, delete-orphan")
-    combat_participations = relationship("CombatParticipant", back_populates="character", cascade="all, delete-orphan")
-    hirelings = relationship("Hireling", back_populates="character", cascade="all, delete-orphan")
-    command_history = relationship("CommandHistory", back_populates="character", cascade="all, delete-orphan")
+    location = relationship(
+        "CharacterLocation", back_populates="character", uselist=False
+    )
+    journal_entries = relationship(
+        "JournalEntry", back_populates="character", cascade="all, delete-orphan"
+    )
+    discovered_rooms = relationship(
+        "RoomDiscovery", back_populates="character", cascade="all, delete-orphan"
+    )
+    spells = relationship(
+        "CharacterSpell", back_populates="character", cascade="all, delete-orphan"
+    )
+    combat_participations = relationship(
+        "CombatParticipant", back_populates="character", cascade="all, delete-orphan"
+    )
+    hirelings = relationship(
+        "Hireling", back_populates="character", cascade="all, delete-orphan"
+    )
+    command_history = relationship(
+        "CommandHistory", back_populates="character", cascade="all, delete-orphan"
+    )
 
     # Relationship to character items
-    items = relationship("CharacterItem", back_populates="character", cascade="all, delete-orphan")
+    items = relationship(
+        "CharacterItem", back_populates="character", cascade="all, delete-orphan"
+    )
 
     # Properties for backward compatibility
     @property
@@ -100,9 +119,19 @@ class Character(Base):
                 "item_id": char_item.item_id,
                 "quantity": char_item.quantity,
                 "equipped": char_item.is_equipped,
-                "slot": char_item.equip_slot
+                "slot": char_item.equip_slot,
             }
         return result
+
+    @property
+    def owner(self):
+        """Backward compatibility property for user relationship"""
+        return self.user
+
+    @owner.setter
+    def owner(self, value):
+        """Setter for backward compatibility"""
+        self.user = value
 
     @inventory.setter
     def inventory(self, value):
@@ -118,7 +147,7 @@ class Character(Base):
         if not isinstance(value, dict):
             try:
                 value = dict(value)
-            except:
+            except Exception:
                 return
 
         # Get current items
@@ -140,12 +169,13 @@ class Character(Base):
                 else:
                     # Create new CharacterItem
                     from app.models.character_item import CharacterItem
+
                     new_item = CharacterItem(
                         character_id=self.id,
                         item_id=item_id,
                         quantity=quantity,
                         is_equipped=is_equipped,
-                        equip_slot=slot
+                        equip_slot=slot,
                     )
                     self.items.append(new_item)
 
@@ -155,7 +185,10 @@ class Character(Base):
 
             except Exception as e:
                 import logging
-                logging.error(f"Error processing inventory item {item_id_str}: {str(e)}")
+
+                logging.error(
+                    f"Error processing inventory item {item_id_str}: {str(e)}"
+                )
 
         # Remove items not in new inventory
         for item in list(current_items.values()):
@@ -186,7 +219,7 @@ class Character(Base):
         if not isinstance(value, dict):
             try:
                 value = dict(value)
-            except:
+            except Exception:
                 return
 
         # Get current equipped items by slot
@@ -214,12 +247,13 @@ class Character(Base):
             if not item_found:
                 # Create new item
                 from app.models.character_item import CharacterItem
+
                 new_item = CharacterItem(
                     character_id=self.id,
                     item_id=item_id,
                     quantity=1,
                     is_equipped=True,
-                    equip_slot=slot
+                    equip_slot=slot,
                 )
                 self.items.append(new_item)
 

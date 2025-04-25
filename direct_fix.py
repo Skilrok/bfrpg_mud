@@ -1,6 +1,6 @@
 import logging
-import os
-import sys
+# REMOVED: import os
+# REMOVED: import sys
 
 from sqlalchemy import text
 
@@ -94,7 +94,8 @@ def fix_character_location(character_id=1):
         # Check if character already has a location
         location = db.execute(
             text(
-                "SELECT id, room_id FROM character_locations WHERE character_id = :char_id"
+                " +
+            "SELECT id, room_id FROM character_locations WHERE"character_id = :char_id"
             ),
             {"char_id": character_id},
         ).fetchone()
@@ -106,7 +107,8 @@ def fix_character_location(character_id=1):
             # Update to room 1
             db.execute(
                 text(
-                    "UPDATE character_locations SET room_id = 1 WHERE character_id = :char_id"
+                    " +
+            "UPDATE character_locations SET room_id = 1 WHERE"character_id = :char_id"
                 ),
                 {"char_id": character_id},
             )
@@ -143,7 +145,7 @@ def debug_look_command():
     """Debug the look command execution"""
     try:
         # Check if we can find look command in registry
-        from app.commands.registry import command_registry
+# REMOVED:         from app.commands.registry import command_registry
 
         # Get all command names
         command_names = []

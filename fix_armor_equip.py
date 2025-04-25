@@ -182,7 +182,8 @@ def fix_and_test_armor(character_name):
                     "equipped", False
                 ):
                     print(
-                        "Chain Mail found in inventory marked as equipped but not in equipment"
+                        " +
+            "Chain Mail found in inventory marked as equipped but not"in equipment"
                     )
                     armor_item = (
                         db.query(models.Item)

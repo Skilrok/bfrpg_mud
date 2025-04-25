@@ -4,7 +4,7 @@ Regression tests for character creation bugs.
 These tests verify that previously fixed bugs in character creation remain fixed.
 """
 
-from unittest.mock import patch
+# REMOVED: from unittest.mock import patch
 
 import pytest
 

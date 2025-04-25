@@ -2,48 +2,61 @@
 Tests for the command system functionality.
 """
 
+# REMOVED: import json
+from typing import Any, Dict
+from unittest.mock import MagicMock, patch
+
 import pytest
 from fastapi.testclient import TestClient
-import json
-from typing import Dict, Any
-from unittest.mock import patch, MagicMock
 
-from app.main import app
-from app.command_handlers import cmd_help, cmd_look, cmd_examine, cmd_inventory
+from app.command_handlers import cmd_examine, cmd_help, cmd_inventory, cmd_look
+from app.commands.base import (
+    CommandCategory,
+    CommandContext,
+    CommandHandler,
+    CommandRequirement,
+    CommandResponse,
+    CommandResult,
+)
 from app.commands.parser import parse_command
 from app.commands.registry import command_registry
-from app.commands.base import CommandHandler, CommandContext, CommandResponse, CommandCategory, CommandRequirement
-from app.commands.base import CommandResult
+from app.main import app
 
 client = TestClient(app)
 
+
 class TestCommandHandler(CommandHandler):
     """Test command handler for unit tests"""
+
     name = "test"
     aliases = ["t", "tst"]
     help_text = "Test command for unit testing. Usage: test [arg]"
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         """Test command execution"""
         return CommandResponse(
             success=True,
             message=f"Test command executed with args: {ctx.args}",
-            data={"args": ctx.args}
+            data={"args": ctx.args},
         )
+
 
 class TestExceptionHandler(CommandHandler):
     """Test command that raises an exception"""
+
     name = "error"
     aliases = ["err"]
     help_text = "Test error handling. Usage: error"
-    
+
     async def execute(self, ctx: CommandContext) -> CommandResponse:
         """Test command that raises an exception"""
         raise ValueError("Test exception")
 
+
 # Register test commands for testing
 command_registry.register(TestCommandHandler)
 command_registry.register(TestExceptionHandler)
+
 
 # Test the command parser
 def test_command_parser():
@@ -51,27 +64,27 @@ def test_command_parser():
     cmd, args = parse_command("look")
     assert cmd == "look"
     assert args == []
-    
+
     # Test command with arguments
     cmd, args = parse_command("look sword")
     assert cmd == "look"
     assert args == ["sword"]
-    
+
     # Test command with multiple arguments
     cmd, args = parse_command("look rusty sword")
     assert cmd == "look"
     assert args == ["rusty", "sword"]
-    
+
     # Test with quoted arguments - note: our parser converts to lowercase
     cmd, args = parse_command('say "Hello, world!"')
     assert cmd == "say"
     assert args == ["hello, world!"]
-    
+
     # Test empty command
     cmd, args = parse_command("")
     assert cmd == ""
     assert args == []
-    
+
     # Test with extra whitespace
     cmd, args = parse_command("  look   around  ")
     assert cmd == "look"
@@ -84,21 +97,21 @@ def test_command_registry():
     handler = command_registry.get_handler("test")
     assert handler is not None
     assert handler.name == "test"
-    
+
     # Test getting a command by alias
     handler = command_registry.get_handler("t")
     assert handler is not None
     assert handler.name == "test"
-    
+
     # Test getting a non-existent command
     handler = command_registry.get_handler("nonexistent")
     assert handler is None
-    
+
     # Test getting available commands
     commands = command_registry.get_available_commands()
     assert "test" in commands
     assert "error" in commands
-    
+
     # Test getting command list
     command_list = command_registry.get_command_list()
     command_names = [cmd.name for cmd in command_list]
@@ -112,31 +125,29 @@ async def test_command_execution():
     """Test the command execution flow"""
     # Create a context for the test command
     ctx = CommandContext(
-        command="test",
-        args=["arg1", "arg2"],
-        raw_input="test arg1 arg2"
+        command="test", args=["arg1", "arg2"], raw_input="test arg1 arg2"
     )
-    
+
     # Execute the command
     response = await command_registry.execute_command(ctx)
-    
+
     # Verify the response
     assert response.success is True
     assert "Test command executed with args" in response.message
     assert response.data["args"] == ["arg1", "arg2"]
-    
+
     # Test with empty command
     ctx.command = ""
     response = await command_registry.execute_command(ctx)
     assert response.success is False
     assert "No command specified" in response.message
-    
+
     # Test with non-existent command
     ctx.command = "nonexistent"
     response = await command_registry.execute_command(ctx)
     assert response.success is False
     assert "Unknown command" in response.message
-    
+
     # Test with error command
     ctx.command = "error"
     response = await command_registry.execute_command(ctx)
@@ -146,34 +157,35 @@ async def test_command_execution():
 
 
 @pytest.mark.parametrize("auth_status", [True, False])
-@pytest.mark.xfail(reason="API authentication not fully implemented in test environment")
+@pytest.mark.xfail(
+    reason="API authentication not fully implemented in test environment"
+)
 def test_command_api(auth_status):
     """Test the command API endpoint"""
     # Create a mock token response
     token_payload = {"access_token": "test_token", "token_type": "bearer"}
-    
+
     # Mock the authentication process
     with patch("app.routers.auth.get_current_active_user") as mock_auth:
         # Setup the mock user
         mock_user = MagicMock()
         mock_user.id = 1
         mock_user.username = "testuser"
-        
+
         if auth_status:
             mock_auth.return_value = mock_user
         else:
             mock_auth.side_effect = Exception("Authentication failed")
-        
+
         # Mock the database session
         with patch("app.database.get_db") as mock_db:
             db_session = MagicMock()
             mock_db.return_value = db_session
-            
+
             # Test the command API endpoint
             if auth_status:
                 response = client.post(
-                    "/api/commands/",
-                    json={"command": "test arg1 arg2"}
+                    "/api/commands/", json={"command": "test arg1 arg2"}
                 )
                 assert response.status_code == 200
                 data = response.json()
@@ -181,18 +193,14 @@ def test_command_api(auth_status):
                 assert "Test command executed" in data["message"]
                 assert data["command"]["name"] == "test"
                 assert data["command"]["args"] == ["arg1", "arg2"]
-                
+
                 # Test with empty command
-                response = client.post(
-                    "/api/commands/",
-                    json={"command": ""}
-                )
+                response = client.post("/api/commands/", json={"command": ""})
                 assert response.status_code == 400
-                
+
                 # Test with non-existent command
                 response = client.post(
-                    "/api/commands/",
-                    json={"command": "nonexistent"}
+                    "/api/commands/", json={"command": "nonexistent"}
                 )
                 assert response.status_code == 200
                 data = response.json()
@@ -200,37 +208,30 @@ def test_command_api(auth_status):
                 assert "Unknown command" in data["message"]
             else:
                 # Test unauthorized access
-                response = client.post(
-                    "/api/commands/",
-                    json={"command": "test"}
-                )
+                response = client.post("/api/commands/", json={"command": "test"})
                 assert response.status_code == 401
 
 
 # Test individual command functionality
-@pytest.mark.xfail(reason="API authentication not fully implemented in test environment")
+@pytest.mark.xfail(
+    reason="API authentication not fully implemented in test environment"
+)
 def test_help_command():
     with patch("app.routers.auth.get_current_active_user") as mock_auth:
         # Setup the mock user
         mock_user = MagicMock()
         mock_user.id = 1
         mock_auth.return_value = mock_user
-        
+
         # Test the help command with no arguments
-        response = client.post(
-            "/api/commands/",
-            json={"command": "help"}
-        )
+        response = client.post("/api/commands/", json={"command": "help"})
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
         assert "Available Commands" in data["message"]
-        
+
         # Test the help command with a specific command
-        response = client.post(
-            "/api/commands/",
-            json={"command": "help look"}
-        )
+        response = client.post("/api/commands/", json={"command": "help look"})
         assert response.status_code == 200
         data = response.json()
         assert data["success"] is True
@@ -268,4 +269,4 @@ def test_inventory_command():
 
 
 if __name__ == "__main__":
-    pytest.main(["-xvs", __file__]) 
+    pytest.main(["-xvs", __file__])

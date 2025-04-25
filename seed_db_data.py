@@ -5,7 +5,7 @@ This will populate the new tables with some example data.
 """
 
 import argparse
-import json
+# REMOVED: import json
 import os
 import sys
 from datetime import datetime
@@ -173,8 +173,10 @@ def seed_journal_entries(db):
                 title="Welcome to the Adventure",
                 content=(
                     f"Welcome, {character.name}! Your adventure begins now.\n\n"
-                    "This journal will record your quests, discoveries, and notable events "
-                    "throughout your journey in this world. Be sure to check back often for "
+                    " +
+            "This journal will record your quests, discoveries, and"notable events "
+                    " +
+            "throughout your journey in this world. Be sure to check"back often for "
                     "updates and to track your progress."
                 ),
                 entry_type=JournalEntryType.SYSTEM,
@@ -188,8 +190,10 @@ def seed_journal_entries(db):
                 title="The Missing Merchant",
                 content=(
                     "I've heard rumors in town about a merchant who went missing on the road "
-                    "to the next village. The town guard is offering a reward for information "
-                    "about his whereabouts or safe return. I should check with the captain of "
+                    " +
+            "to the next village. The town guard is offering a reward"for information "
+                    " +
+            "about his whereabouts or safe return. I should check with"the captain of "
                     "the guard for more details."
                 ),
                 entry_type=JournalEntryType.QUEST,

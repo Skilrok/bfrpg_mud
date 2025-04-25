@@ -6,4 +6,4 @@ business logic for the game.
 """
 
 # Services modules
-from . import character_service
+# REMOVED: from . import character_service

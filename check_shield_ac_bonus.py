@@ -61,7 +61,8 @@ def check_shield_ac_bonus():
                         )
                     else:
                         logger.error(
-                            "❌ The ac_bonus column value does NOT match the properties value"
+                            " +
+            "❌ The ac_bonus column value does NOT match the properties"value"
                         )
                         logger.info(
                             f"   Column: {shield.ac_bonus}, Properties: {shield.properties['ac_bonus']}"

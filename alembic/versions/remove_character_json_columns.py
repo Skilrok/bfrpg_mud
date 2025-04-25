@@ -7,7 +7,7 @@ Create Date: 2024-04-25
 """
 
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
+# REMOVED: from sqlalchemy.dialects import postgresql
 
 from alembic import op
 

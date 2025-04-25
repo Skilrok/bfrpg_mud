@@ -19,7 +19,7 @@ from sqlalchemy import (
     text,
     update,
 )
-from sqlalchemy.ext.declarative import declarative_base
+# REMOVED: from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy.sql import text as sql_text
 

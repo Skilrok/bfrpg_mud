@@ -1,7 +1,8 @@
 import enum
 
 from sqlalchemy import Boolean, Column, Enum, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.orm import relationship
+
+# REMOVED: from sqlalchemy.orm import relationship
 
 from app.models.base import JSON_TYPE, Base
 

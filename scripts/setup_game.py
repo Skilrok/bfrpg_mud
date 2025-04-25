@@ -13,7 +13,8 @@ import asyncio
 import logging
 import os
 import sys
-from getpass import getpass
+
+# REMOVED: from getpass import getpass
 
 # Add the parent directory to the path so we can import app modules
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))

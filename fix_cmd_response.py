@@ -1,7 +1,7 @@
-import json
+# REMOVED: import json
 import logging
 import os
-from datetime import datetime
+# REMOVED: from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -136,7 +136,8 @@ def enhance_debug_command():
             original_code = """        # Return a simple response
         return CommandResponse(
             success=True,
-            message="Debug command executed successfully! The command system is working.",
+            message=" +
+            "Debug command executed successfully! The command system is"working.",
             data={"args": ctx.args}
         )"""
 
@@ -181,7 +182,8 @@ def enhance_debug_command():
             # Add datetime import if needed
             if "from datetime import datetime" not in updated_content:
                 updated_content = (
-                    "import logging\nfrom datetime import datetime\nfrom typing import List, Optional\n"
+                    " +
+            "import logging\nfrom datetime import datetime\nfrom typing"import List, Optional\n"
                     + updated_content[updated_content.find("from app") :]
                 )
 

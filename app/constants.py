@@ -109,10 +109,11 @@ class ItemType(str, enum.Enum):
 class EquipmentSlot(str, enum.Enum):
     """
     Available equipment slots for characters.
-    
+
     Each character can equip items in specific slots based on the item type.
     Some slots are mutually exclusive with others.
     """
+
     HEAD = "head"
     BODY = "body"
     MAIN_HAND = "main_hand"

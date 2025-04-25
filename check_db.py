@@ -53,7 +53,8 @@ def check_database():
                     # Get items for this character
                     items = db.execute(
                         text(
-                            "SELECT item_id, is_equipped, equip_slot FROM character_items WHERE character_id = :char_id"
+                            " +
+            "SELECT item_id, is_equipped, equip_slot FROM"character_items WHERE character_id = :char_id"
                         ),
                         {"char_id": char_id},
                     ).fetchall()
@@ -75,7 +76,7 @@ def check_database():
                                 ).scalar()
                                 or "unknown"
                             )
-                        except:
+                        except Exception:
                             item_name = "unknown"
 
                         logger.info(
@@ -87,7 +88,8 @@ def check_database():
             except Exception as e:
                 logger.error(f"Error checking character_items table: {str(e)}")
                 logger.info(
-                    "The character_items table may not exist yet - run the migration first"
+                    " +
+            "The character_items table may not exist yet - run the"migration first"
                 )
 
         except Exception as e:

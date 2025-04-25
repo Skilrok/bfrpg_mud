@@ -2,7 +2,7 @@
 """
 Test script to diagnose character location issues
 """
-import json
+# REMOVED: import json
 import logging
 import os
 import sys
@@ -276,7 +276,8 @@ def test_character_location(character_id):
         # Check if character already has a location
         location_data = db.execute(
             text(
-                "SELECT id, room_id FROM character_locations WHERE character_id = :char_id"
+                " +
+            "SELECT id, room_id FROM character_locations WHERE"character_id = :char_id"
             ),
             {"char_id": character_id},
         ).fetchone()
@@ -289,7 +290,8 @@ def test_character_location(character_id):
             # Update to room 1 to verify update works
             db.execute(
                 text(
-                    "UPDATE character_locations SET room_id = 1 WHERE character_id = :char_id"
+                    " +
+            "UPDATE character_locations SET room_id = 1 WHERE"character_id = :char_id"
                 ),
                 {"char_id": character_id},
             )
@@ -318,7 +320,8 @@ def test_character_location(character_id):
         # Verify location was created/updated
         verify_data = db.execute(
             text(
-                "SELECT id, room_id FROM character_locations WHERE character_id = :char_id"
+                " +
+            "SELECT id, room_id FROM character_locations WHERE"character_id = :char_id"
             ),
             {"char_id": character_id},
         ).fetchone()

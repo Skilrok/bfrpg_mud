@@ -1,7 +1,7 @@
-import json
+# REMOVED: import json
 import logging
 import os
-from datetime import datetime
+# REMOVED: from datetime import datetime
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,7 +36,8 @@ def fix_websocket_handler():
 
             # Add debug info
             debug_content = content.replace(
-                "async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):",
+                " +
+            "async def handle_command_message(self, websocket:"WebSocket, message: dict, session_data: dict):",
                 """async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):
         # ADDED DEBUG INFO
         logger.info(f"Processing command: {message}")
@@ -185,7 +186,8 @@ class DebugCommand(CommandHandler):
         # Return a simple response
         return CommandResponse(
             success=True,
-            message="Debug command executed successfully! The command system is working.",
+            message=" +
+            "Debug command executed successfully! The command system is"working.",
             data={"args": ctx.args}
         )
 
@@ -211,7 +213,8 @@ logger.info("Debug command registered")
             if "import app.commands.debug_command" not in init_content:
                 # Add import at the end
                 if init_content.strip():
-                    init_content += "\n\n# Import debug command\nimport app.commands.debug_command\n"
+                    init_content += " +
+            "\n\n# Import debug command\nimport"app.commands.debug_command\n"
                 else:
                     init_content = (
                         "# Import debug command\nimport app.commands.debug_command\n"

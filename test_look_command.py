@@ -14,7 +14,8 @@ logger = logging.getLogger(__name__)
 
 # Configuration
 WS_URL = "ws://localhost:8000/ws/commands"
-AUTH_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc0NTQ2MDgzNn0.cXclT2FsE23hCW9rshAwZnRbCGfiUE0Tb_zlrOOxwHw"
+AUTH_TOKEN = " +
+            ""eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsImV4cCI6MTc0NTQ2MDgzNn0.cXclT2FsE23hCW9rshAwZnRbCGfiUE0Tb_zlrOOxwHw"
 CHARACTER_ID = 10  # Change to your character ID
 
 
@@ -42,7 +43,8 @@ async def test_look_command():
                 if "Invalid or expired token" in response_data.get("message", ""):
                     print("\n===== TOKEN EXPIRED =====")
                     print(
-                        "Your authentication token has expired. Please generate a new token."
+                        " +
+            "Your authentication token has expired. Please generate a"new token."
                     )
                     print("To generate a new token, you can use the login endpoint:")
                     print("POST /api/auth/login with username/password")

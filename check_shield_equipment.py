@@ -3,7 +3,8 @@ import logging
 from app.database import get_db
 from app.models.character import Character
 from app.models.character_item import CharacterItem
-from app.models.item import Item
+
+# REMOVED: from app.models.item import Item
 
 # Set up logging
 logging.basicConfig(

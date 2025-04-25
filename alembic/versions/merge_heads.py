@@ -5,7 +5,7 @@ Revises: initial, af9d6581c320
 Create Date: 2024-09-22
 
 """
-from alembic import op
+# REMOVED: from alembic import op
 import sqlalchemy as sa
 
 

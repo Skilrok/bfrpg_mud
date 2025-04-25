@@ -82,7 +82,8 @@ def fix_websocket_debug():
 
             # Add debug print
             modified_content = content.replace(
-                "async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):",
+                " +
+            "async def handle_command_message(self, websocket:"WebSocket, message: dict, session_data: dict):",
                 """async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):
         # DEBUG - Print command info
         try:
@@ -161,7 +162,8 @@ def fix_look_command():
 
             # Add debug logging
             modified_content = content.replace(
-                "async def _look_at_room(self, db: Session, character_id: int) -> CommandResponse:",
+                " +
+            "async def _look_at_room(self, db: Session, character_id:"int) -> CommandResponse:",
                 """async def _look_at_room(self, db: Session, character_id: int) -> CommandResponse:
         # DEBUG - Log look command execution
         logger.info(f"Looking at room for character {character_id}")""",

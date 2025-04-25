@@ -415,7 +415,8 @@ def debug_command_handling():
             # Add debug to handle_command_message
             if "async def handle_command_message" in websocket_content:
                 modified_websocket = websocket_content.replace(
-                    "async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):",
+                    " +
+            "async def handle_command_message(self, websocket:"WebSocket, message: dict, session_data: dict):",
                     """async def handle_command_message(self, websocket: WebSocket, message: dict, session_data: dict):
         # DEBUG WEBSOCKET MANAGER
         import logging

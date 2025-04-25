@@ -2,7 +2,7 @@
 Exit model for representing connections between rooms in the MUD
 """
 
-from datetime import datetime
+# REMOVED: from datetime import datetime
 from typing import Any, Dict, Optional
 
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Text

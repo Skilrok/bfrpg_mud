@@ -51,7 +51,8 @@ async def test_look_command():
             # Try to create a location
             db.execute(
                 text(
-                    "INSERT INTO character_locations (character_id, room_id) VALUES (:char_id, 1)"
+                    " +
+            "INSERT INTO character_locations (character_id, room_id)"VALUES (:char_id, 1)"
                 ),
                 {"char_id": character_id},
             )

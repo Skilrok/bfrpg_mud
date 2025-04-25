@@ -9,7 +9,8 @@ import traceback
 from sqlalchemy import text
 
 from app.database import get_db_context
-from app.models.hireling import Hireling
+
+# REMOVED: from app.models.hireling import Hireling
 
 # Set up logging
 logging.basicConfig(

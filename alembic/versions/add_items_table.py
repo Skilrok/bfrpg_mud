@@ -7,7 +7,7 @@ Create Date: 2024-09-23
 """
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import sqlite
+# REMOVED: from sqlalchemy.dialects import sqlite
 from app.models import ItemType
 
 

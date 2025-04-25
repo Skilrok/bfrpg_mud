@@ -4,7 +4,7 @@ Script to import monsters from the SRD monsters markdown file into the database.
 This script parses the Basic Fantasy RPG SRD monster descriptions and creates NPC records.
 """
 
-import json
+# REMOVED: import json
 import os
 import re
 import sys

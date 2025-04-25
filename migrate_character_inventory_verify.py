@@ -3,7 +3,7 @@
 Script to verify the character inventory migration using the ORM after relationship fixes.
 """
 
-import json
+# REMOVED: import json
 import logging
 import traceback
 
@@ -92,7 +92,8 @@ def verify_migration():
                     # Verify equipment matches equipped CharacterItems
                     if len(equipment) == len(equipped_items):
                         logger.info(
-                            "  ✅ equipment property length matches equipped CharacterItems count"
+                            " +
+            " ✅ equipment property length matches equipped"CharacterItems count"
                         )
                     else:
                         logger.warning(

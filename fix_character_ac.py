@@ -1,19 +1,21 @@
+import logging
+import argparse
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.models.character import Character
 from app.models.character_item import CharacterItem
 from app.models.item import Item
-from app.database import get_db_context
-import logging
 
-# Configure logging
+# Set up logging
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
 def get_ability_modifier(score):
-    """Calculate ability score modifier"""
-    if score == 3:
+    """Calculate ability modifier based on score."""
+    if score <= 3:
         return -3
     elif 4 <= score <= 5:
         return -2
@@ -25,101 +27,110 @@ def get_ability_modifier(score):
         return 1
     elif 16 <= score <= 17:
         return 2
-    elif score == 18:
+    elif score >= 18:
         return 3
-    else:
-        return 0
 
-def fix_character_ac_calculations():
-    """Fix armor class calculations for all characters based on equipped items"""
-    logger.info("Starting AC calculation fix for all characters")
+def fix_character_ac_calculations(check_only=False):
+    """Update character AC based on equipped items and dexterity.
     
-    with get_db_context() as db:
+    Args:
+        check_only: If True, only check for discrepancies without updating.
+    """
+    logger.info("Starting to fix AC calculations for all characters")
+    
+    # Create database session
+    db = next(get_db())
+    
+    try:
+        # Get all characters from the database
         characters = db.query(Character).all()
         logger.info(f"Found {len(characters)} characters to process")
         
-        updated_count = 0
+        update_count = 0
         
         for character in characters:
-            logger.info(f"Processing character: {character.name} (ID: {character.id})")
-            # Get equipped items
-            items = db.query(CharacterItem).filter(
-                CharacterItem.character_id == character.id,
-                CharacterItem.is_equipped == True
-            ).all()
-            
-            # Start with base AC of 10
-            base_ac = 10
-            shield_bonus = 0
+            logger.info(f"Processing character {character.name} (ID: {character.id})")
             
             # Calculate dexterity modifier
-            dex_mod = get_ability_modifier(character.dexterity)
-            logger.info(f"Dexterity: {character.dexterity}, Modifier: {dex_mod}")
+            dex_modifier = get_ability_modifier(character.dexterity)
+            logger.info(f"Character dexterity: {character.dexterity}, modifier: {dex_modifier}")
             
-            # Process equipped items
-            for ci in items:
-                item = db.query(Item).filter(Item.id == ci.item_id).first()
+            # Get equipped items from CharacterItem table
+            equipped_items = (
+                db.query(CharacterItem)
+                .filter(CharacterItem.character_id == character.id, CharacterItem.is_equipped == True)
+                .all()
+            )
+            
+            logger.info(f"Found {len(equipped_items)} equipped items")
+            
+            # Calculate AC based on equipped items
+            base_ac = 10  # Default base AC
+            shield_bonus = 0
+            
+            for char_item in equipped_items:
+                # Get the actual item
+                item = db.query(Item).filter(Item.id == char_item.item_id).first()
+                
                 if not item:
-                    logger.warning(f"Item ID {ci.item_id} not found in database")
+                    logger.warning(f"Item ID {char_item.item_id} not found in database")
                     continue
                 
-                logger.info(f"Checking equipped item: {item.name} (ID: {item.id}) in slot {ci.equip_slot}")
+                logger.info(f"Checking item: {item.name} (ID: {item.id}) in slot: {char_item.equip_slot}")
                 
-                # Handle armor
-                if item.item_type.value == "armor":
-                    # Check if it's in the body slot or just marked as equipped
-                    if ci.equip_slot == "body" or (ci.is_equipped and not ci.equip_slot):
-                        if item.armor_class is not None:
-                            base_ac = item.armor_class
-                            logger.info(f"Using armor_class column value: {base_ac}")
-                        elif item.ac_bonus is not None:
-                            base_ac = item.ac_bonus
-                            logger.info(f"Using ac_bonus column value: {base_ac}")
-                        elif item.properties and "armor_class" in item.properties:
-                            base_ac = item.properties["armor_class"]
-                            logger.info(f"Using properties armor_class value: {base_ac}")
-                        elif item.properties and "ac_bonus" in item.properties:
-                            base_ac = item.properties["ac_bonus"]
-                            logger.info(f"Using properties ac_bonus value: {base_ac}")
+                # Check if item is armor
+                if item.item_type == "Armor" and char_item.equip_slot == "body":
+                    armor_class = item.armor_class or 0
+                    if armor_class > 0:
+                        logger.info(f"Found armor with AC {armor_class}")
+                        base_ac = armor_class
+                    
+                    ac_bonus = item.ac_bonus or 0
+                    if ac_bonus > 0:
+                        logger.info(f"Found armor with AC bonus {ac_bonus}")
+                        base_ac += ac_bonus
                 
-                # Handle shield
-                if item.item_type.value == "shield" and (ci.equip_slot == "off_hand" or (ci.is_equipped and not ci.equip_slot)):
-                    if item.ac_bonus is not None:
-                        shield_bonus = item.ac_bonus
-                        logger.info(f"Using shield ac_bonus column value: {shield_bonus}")
-                    elif item.properties and "ac_bonus" in item.properties:
-                        shield_bonus = item.properties["ac_bonus"]
-                        logger.info(f"Using shield properties ac_bonus value: {shield_bonus}")
+                # Check if item is a shield
+                elif item.item_type == "Armor" and char_item.equip_slot == "off_hand":
+                    shield_ac = item.ac_bonus or 0
+                    if shield_ac > 0:
+                        logger.info(f"Found shield with AC bonus {shield_ac}")
+                        shield_bonus = shield_ac
             
-            # Calculate new AC
-            new_ac = base_ac + shield_bonus + dex_mod
+            # Calculate expected AC
+            expected_ac = base_ac + shield_bonus + dex_modifier
             
-            # Update if different
-            if character.armor_class != new_ac:
-                logger.info(f"Updating {character.name} AC from {character.armor_class} to {new_ac}")
-                character.armor_class = new_ac
-                db.add(character)
-                updated_count += 1
-            else:
-                logger.info(f"AC for {character.name} is already correct: {character.armor_class}")
+            logger.info(f"Current AC: {character.armor_class}, Expected AC: {expected_ac}")
+            
+            # Update AC if necessary
+            if character.armor_class != expected_ac:
+                logger.info(f"Updating AC for {character.name} from {character.armor_class} to {expected_ac}")
+                update_count += 1
+                
+                if not check_only:
+                    character.armor_class = expected_ac
+                    db.add(character)
         
-        # Commit all changes
-        if updated_count > 0:
-            logger.info(f"Committing changes for {updated_count} characters")
-            db.commit()
-            logger.info("Armor class calculations fixed for all characters")
+        if update_count > 0:
+            if check_only:
+                logger.info(f"Found {update_count} characters with incorrect AC calculations")
+            else:
+                db.commit()
+                logger.info(f"Updated AC for {update_count} characters")
         else:
-            logger.info("No changes needed - all characters have correct AC values")
-
+            logger.info("All character AC calculations are correct")
+            
+    except Exception as e:
+        logger.error(f"Error fixing AC calculations: {str(e)}")
+        db.rollback()
+        raise
+    finally:
+        db.close()
+        
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Fix armor class calculations for all characters")
-    parser.add_argument("--check-only", action="store_true", help="Only check AC values without updating")
-    parser.add_argument("--character-id", type=int, help="Process only the specified character ID")
+    parser = argparse.ArgumentParser(description="Fix character AC calculations")
+    parser.add_argument("--check-only", action="store_true", 
+                        help="Only check for AC discrepancies without updating")
     args = parser.parse_args()
-
-    if args.check_only:
-        logger.info("Running in check-only mode")
     
-    fix_character_ac_calculations() 
+    fix_character_ac_calculations(check_only=args.check_only)

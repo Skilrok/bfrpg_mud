@@ -2,9 +2,11 @@
 Seed script to populate the database with basic items.
 Run this script to initialize the database with common items.
 """
+
 import os
 import sys
-from sqlalchemy.orm import Session
+
+# REMOVED: from sqlalchemy.orm import Session
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,14 +20,14 @@ def seed_items():
     Seed the database with basic items for the game.
     """
     db = SessionLocal()
-    
+
     try:
         # Check if we already have items
         existing_count = db.query(Item).count()
         if existing_count > 0:
             print(f"Database already has {existing_count} items. Skipping seed.")
             return
-        
+
         # Weapons
         weapons = [
             {
@@ -38,8 +40,8 @@ def seed_items():
                     "damage": "1d4",
                     "damage_type": "piercing",
                     "range": "melee",
-                    "hands": 1
-                }
+                    "hands": 1,
+                },
             },
             {
                 "name": "Shortsword",
@@ -51,8 +53,8 @@ def seed_items():
                     "damage": "1d6",
                     "damage_type": "piercing",
                     "range": "melee",
-                    "hands": 1
-                }
+                    "hands": 1,
+                },
             },
             {
                 "name": "Longsword",
@@ -64,8 +66,8 @@ def seed_items():
                     "damage": "1d8",
                     "damage_type": "slashing",
                     "range": "melee",
-                    "hands": 1
-                }
+                    "hands": 1,
+                },
             },
             {
                 "name": "Battleaxe",
@@ -77,8 +79,8 @@ def seed_items():
                     "damage": "1d8",
                     "damage_type": "slashing",
                     "range": "melee",
-                    "hands": 1
-                }
+                    "hands": 1,
+                },
             },
             {
                 "name": "Warhammer",
@@ -90,8 +92,8 @@ def seed_items():
                     "damage": "1d8",
                     "damage_type": "bludgeoning",
                     "range": "melee",
-                    "hands": 1
-                }
+                    "hands": 1,
+                },
             },
             {
                 "name": "Shortbow",
@@ -103,8 +105,8 @@ def seed_items():
                     "damage": "1d6",
                     "damage_type": "piercing",
                     "range": "80/320",
-                    "hands": 2
-                }
+                    "hands": 2,
+                },
             },
             {
                 "name": "Longbow",
@@ -116,8 +118,8 @@ def seed_items():
                     "damage": "1d8",
                     "damage_type": "piercing",
                     "range": "150/600",
-                    "hands": 2
-                }
+                    "hands": 2,
+                },
             },
             {
                 "name": "Staff",
@@ -129,11 +131,11 @@ def seed_items():
                     "damage": "1d6",
                     "damage_type": "bludgeoning",
                     "range": "melee",
-                    "hands": 2
-                }
-            }
+                    "hands": 2,
+                },
+            },
         ]
-        
+
         # Armor
         armor = [
             {
@@ -146,8 +148,8 @@ def seed_items():
                     "base_ac": 12,
                     "dex_bonus": True,
                     "max_dex_bonus": None,
-                    "type": "light"
-                }
+                    "type": "light",
+                },
             },
             {
                 "name": "Chain Mail",
@@ -159,8 +161,8 @@ def seed_items():
                     "base_ac": 14,
                     "dex_bonus": True,
                     "max_dex_bonus": 2,
-                    "type": "medium"
-                }
+                    "type": "medium",
+                },
             },
             {
                 "name": "Plate Mail",
@@ -172,11 +174,11 @@ def seed_items():
                     "base_ac": 16,
                     "dex_bonus": False,
                     "max_dex_bonus": 0,
-                    "type": "heavy"
-                }
-            }
+                    "type": "heavy",
+                },
+            },
         ]
-        
+
         # Shields
         shields = [
             {
@@ -185,9 +187,7 @@ def seed_items():
                 "item_type": ItemType.SHIELD,
                 "value": 10,
                 "weight": 5.0,
-                "properties": {
-                    "ac_bonus": 1
-                }
+                "properties": {"ac_bonus": 1},
             },
             {
                 "name": "Metal Shield",
@@ -195,12 +195,10 @@ def seed_items():
                 "item_type": ItemType.SHIELD,
                 "value": 50,
                 "weight": 8.0,
-                "properties": {
-                    "ac_bonus": 2
-                }
-            }
+                "properties": {"ac_bonus": 2},
+            },
         ]
-        
+
         # Potions
         potions = [
             {
@@ -209,10 +207,7 @@ def seed_items():
                 "item_type": ItemType.POTION,
                 "value": 50,
                 "weight": 0.5,
-                "properties": {
-                    "effect": "healing",
-                    "healing": "1d8+2"
-                }
+                "properties": {"effect": "healing", "healing": "1d8+2"},
             },
             {
                 "name": "Potion of Strength",
@@ -224,11 +219,11 @@ def seed_items():
                     "effect": "buff",
                     "stat": "strength",
                     "bonus": 2,
-                    "duration": "1d4 hours"
-                }
-            }
+                    "duration": "1d4 hours",
+                },
+            },
         ]
-        
+
         # Tools
         tools = [
             {
@@ -237,10 +232,7 @@ def seed_items():
                 "item_type": ItemType.TOOL,
                 "value": 25,
                 "weight": 1.0,
-                "properties": {
-                    "skill": "lock_picking",
-                    "bonus": 2
-                }
+                "properties": {"skill": "lock_picking", "bonus": 2},
             },
             {
                 "name": "Rope (50 ft)",
@@ -248,7 +240,7 @@ def seed_items():
                 "item_type": ItemType.TOOL,
                 "value": 1,
                 "weight": 10.0,
-                "properties": {}
+                "properties": {},
             },
             {
                 "name": "Torch",
@@ -256,13 +248,10 @@ def seed_items():
                 "item_type": ItemType.TOOL,
                 "value": 0.1,
                 "weight": 1.0,
-                "properties": {
-                    "light_radius": 30,
-                    "duration": "1 hour"
-                }
-            }
+                "properties": {"light_radius": 30, "duration": "1 hour"},
+            },
         ]
-        
+
         # Food
         food = [
             {
@@ -271,10 +260,7 @@ def seed_items():
                 "item_type": ItemType.FOOD,
                 "value": 0.5,
                 "weight": 2.0,
-                "properties": {
-                    "nutrition": 1,
-                    "perishable": False
-                }
+                "properties": {"nutrition": 1, "perishable": False},
             },
             {
                 "name": "Bread",
@@ -282,13 +268,10 @@ def seed_items():
                 "item_type": ItemType.FOOD,
                 "value": 0.2,
                 "weight": 0.5,
-                "properties": {
-                    "nutrition": 0.5,
-                    "perishable": True
-                }
-            }
+                "properties": {"nutrition": 0.5, "perishable": True},
+            },
         ]
-        
+
         # Ammunition
         ammunition = [
             {
@@ -297,10 +280,7 @@ def seed_items():
                 "item_type": ItemType.AMMUNITION,
                 "value": 1,
                 "weight": 1.0,
-                "properties": {
-                    "weapon": "bow",
-                    "quantity": 20
-                }
+                "properties": {"weapon": "bow", "quantity": 20},
             },
             {
                 "name": "Sling Stones (20)",
@@ -308,13 +288,10 @@ def seed_items():
                 "item_type": ItemType.AMMUNITION,
                 "value": 0.1,
                 "weight": 1.5,
-                "properties": {
-                    "weapon": "sling",
-                    "quantity": 20
-                }
-            }
+                "properties": {"weapon": "sling", "quantity": 20},
+            },
         ]
-        
+
         # Containers
         containers = [
             {
@@ -323,10 +300,7 @@ def seed_items():
                 "item_type": ItemType.CONTAINER,
                 "value": 2,
                 "weight": 5.0,
-                "properties": {
-                    "capacity": 30,  # In pounds
-                    "slots": 8
-                }
+                "properties": {"capacity": 30, "slots": 8},  # In pounds
             },
             {
                 "name": "Pouch",
@@ -334,13 +308,10 @@ def seed_items():
                 "item_type": ItemType.CONTAINER,
                 "value": 0.5,
                 "weight": 0.5,
-                "properties": {
-                    "capacity": 5,  # In pounds
-                    "slots": 2
-                }
-            }
+                "properties": {"capacity": 5, "slots": 2},  # In pounds
+            },
         ]
-        
+
         # Clothing
         clothing = [
             {
@@ -349,10 +320,7 @@ def seed_items():
                 "item_type": ItemType.CLOTHING,
                 "value": 1,
                 "weight": 3.0,
-                "properties": {
-                    "warmth": 2,
-                    "slot": "shoulders"
-                }
+                "properties": {"warmth": 2, "slot": "shoulders"},
             },
             {
                 "name": "Boots",
@@ -360,24 +328,31 @@ def seed_items():
                 "item_type": ItemType.CLOTHING,
                 "value": 1,
                 "weight": 2.0,
-                "properties": {
-                    "protection": 1,
-                    "slot": "feet"
-                }
-            }
+                "properties": {"protection": 1, "slot": "feet"},
+            },
         ]
-        
+
         # Combine all items
-        all_items = weapons + armor + shields + potions + tools + food + ammunition + containers + clothing
-        
+        all_items = (
+            weapons
+            + armor
+            + shields
+            + potions
+            + tools
+            + food
+            + ammunition
+            + containers
+            + clothing
+        )
+
         # Add items to database
         for item_data in all_items:
             item = Item(**item_data)
             db.add(item)
-        
+
         db.commit()
         print(f"Added {len(all_items)} items to the database.")
-    
+
     except Exception as e:
         db.rollback()
         print(f"Error seeding items: {e}")
@@ -387,4 +362,4 @@ def seed_items():
 
 if __name__ == "__main__":
     seed_items()
-    print("Item seeding complete.") 
+    print("Item seeding complete.")

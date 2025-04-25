@@ -1,7 +1,7 @@
 import json
 import logging
 import os
-import sys
+# REMOVED: import sys
 
 # Configure logging
 logging.basicConfig(
@@ -221,6 +221,7 @@ if __name__ == "__main__":
     print("\n=== Next Steps ===")
     print("1. Run the browser console test code to check client-side functionality")
     print(
-        "2. Based on API results, update the loadInventory function to use the working endpoint"
+        " +
+            "2. Based on API results, update the loadInventory function"to use the working endpoint"
     )
     print("3. Check for any errors in the updateInventory and related functions")

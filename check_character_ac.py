@@ -107,10 +107,10 @@ def check_character_ac(character_name):
 
                 elif slot == "off_hand" and item.item_type.value == "shield":
                     if "ac_bonus" in item.properties:
-                        base_ac -= item.properties["ac_bonus"]  # Lower is better
+                        base_ac += item.properties["ac_bonus"]  # Higher is better in ascending AC
 
         # Apply dex modifier
-        expected_ac = base_ac - dex_mod
+        expected_ac = base_ac + dex_mod
 
         print(f"\nExpected AC calculation:")
         print(f"Base AC from equipment: {base_ac}")

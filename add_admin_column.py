@@ -37,7 +37,8 @@ def add_admin_column():
             print("Creating admin user...")
             hashed_password = get_password_hash("admin")
             cursor.execute(
-                "INSERT INTO users (username, email, hashed_password, is_active, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                " +
+            "INSERT INTO users (username, email, hashed_password,"is_active, is_admin, created_at, updated_at) VALUES (?, ?,"?, ?, ?, ?, ?)",
                 ("admin", "admin@example.com", hashed_password, True, True, now, now),
             )
             conn.commit()

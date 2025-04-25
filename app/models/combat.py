@@ -14,7 +14,8 @@ from sqlalchemy import (
     Text,
 )
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
+
+# REMOVED: from sqlalchemy.sql import func
 
 from app.models.base import JSON_TYPE, Base
 

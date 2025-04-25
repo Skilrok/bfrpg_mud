@@ -1,14 +1,16 @@
-import asyncio
+# REMOVED: import asyncio
 import json
 import logging
 from typing import Any, Dict, List, Set
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from sqlalchemy.orm import Session
+
+# REMOVED: from sqlalchemy.orm import Session
 
 from app.commands.base import CommandContext
 from app.commands.registry import command_registry
-from app.database import get_db
+
+# REMOVED: from app.database import get_db
 from app.models import Character, CharacterLocation, User
 
 logger = logging.getLogger(__name__)
@@ -192,9 +194,10 @@ class WebSocketManager:
 
                 # Get database session
                 # We need to create a new db session for each request since we're in an async context
+                from jose import JWTError, jwt
+
                 from app.database import SessionLocal
-                from app.utils import SECRET_KEY, ALGORITHM
-                from jose import jwt, JWTError
+                from app.utils import ALGORITHM, SECRET_KEY
 
                 db = SessionLocal()
                 try:
@@ -202,24 +205,33 @@ class WebSocketManager:
                     try:
                         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
                         user_id = None
-                        
+
                         # Handle both formats - username as "sub" and direct user ID
                         subject = payload.get("sub")
                         if subject is not None:
                             # Try to convert to int if it's a user ID
                             try:
                                 user_id = int(subject)
-                                logger.info(f"Found numeric user ID in token: {user_id}")
+                                logger.info(
+                                    f"Found numeric user ID in token: {user_id}"
+                                )
                             except (ValueError, TypeError):
                                 # It's a username, look it up
                                 logger.info(f"Found username in token: {subject}")
-                                user = db.query(User).filter(User.username == subject).first()
+                                user = (
+                                    db.query(User)
+                                    .filter(User.username == subject)
+                                    .first()
+                                )
                                 if user:
                                     user_id = user.id
-                        
+
                         if not user_id:
                             await websocket.send_json(
-                                {"success": False, "message": "Invalid token payload or user not found"}
+                                {
+                                    "success": False,
+                                    "message": "Invalid token payload or user not found",
+                                }
                             )
                             return
                     except JWTError as e:
@@ -259,20 +271,29 @@ class WebSocketManager:
                                 }
                             )
                             return
-                            
+
                         # Ensure character has a location in the starting room
-                        from app.services.character_service import ensure_room_exists, set_character_starting_location
-                        
+                        from app.services.character_service import (
+                            ensure_room_exists,
+                            set_character_starting_location,
+                        )
+
                         # Make sure room 1 exists
                         starter_room = ensure_room_exists(db, 1)
                         if not starter_room:
-                            logger.error(f"Failed to ensure starter room exists for character {character_id}")
-                            
+                            logger.error(
+                                f"Failed to ensure starter room exists for character {character_id}"
+                            )
+
                         # Set character location
-                        location_success = set_character_starting_location(db, character_id)
+                        location_success = set_character_starting_location(
+                            db, character_id
+                        )
                         if not location_success:
-                            logger.warning(f"Failed to set starting location for character {character_id}")
-                            
+                            logger.warning(
+                                f"Failed to set starting location for character {character_id}"
+                            )
+
                         # Refresh character after location is set
                         db.refresh(character)
 
@@ -302,13 +323,15 @@ class WebSocketManager:
                                 {"success": False, "message": "Empty command"}
                             )
                             continue
-                        
+
                         # Get character ID from the data payload if available
                         cmd_character_id = data.get("character_id")
                         if cmd_character_id:
                             character_id = cmd_character_id
-                            logger.info(f"Using character ID from command payload: {character_id}")
-                        
+                            logger.info(
+                                f"Using character ID from command payload: {character_id}"
+                            )
+
                         # Refresh character object on each command
                         if character_id:
                             character = (
@@ -319,7 +342,7 @@ class WebSocketManager:
                                 )
                                 .first()
                             )
-                            
+
                             if not character:
                                 await websocket.send_json(
                                     {
@@ -338,24 +361,32 @@ class WebSocketManager:
                                 .filter(CharacterLocation.character_id == character_id)
                                 .first()
                             )
-                            
+
                             if character_location:
                                 room_id = character_location.room_id
-                                
+
                             if not character_location:
                                 # Try to set character location if it doesn't exist
-                                from app.services.character_service import set_character_starting_location
-                                location_success = set_character_starting_location(db, character_id)
+                                from app.services.character_service import (
+                                    set_character_starting_location,
+                                )
+
+                                location_success = set_character_starting_location(
+                                    db, character_id
+                                )
                                 if location_success:
                                     # Get the new location
                                     character_location = (
                                         db.query(CharacterLocation)
-                                        .filter(CharacterLocation.character_id == character_id)
+                                        .filter(
+                                            CharacterLocation.character_id
+                                            == character_id
+                                        )
                                         .first()
                                     )
                                     if character_location:
                                         room_id = character_location.room_id
-                                
+
                                 # Refresh character after location update
                                 if character:
                                     db.refresh(character)
@@ -364,9 +395,11 @@ class WebSocketManager:
                         from app.commands.parser import parse_command
 
                         cmd, args = parse_command(command_text)
-                        
+
                         # Log to help debug
-                        logger.info(f"Command: {cmd}, Args: {args}, Character: {character_id}, Room: {room_id}")
+                        logger.info(
+                            f"Command: {cmd}, Args: {args}, Character: {character_id}, Room: {room_id}"
+                        )
 
                         # Create command context
                         ctx = CommandContext(
@@ -379,16 +412,18 @@ class WebSocketManager:
                             args=args,
                             data={
                                 "db": db,
-                                "character_id": character_id  # Explicitly include character_id in data
+                                "character_id": character_id,  # Explicitly include character_id in data
                             },
                         )
 
                         try:
                             # Execute command
                             response = await command_registry.execute_command(ctx)
-                            
+
                             # Log the response for debugging
-                            logger.info(f"Command response: success={response.success}, message_length={len(response.message) if response.message else 0}")
+                            logger.info(
+                                f"Command response: success={response.success}, message_length={len(response.message) if response.message else 0}"
+                            )
 
                             # Send response back to client
                             await websocket.send_json(
@@ -400,22 +435,23 @@ class WebSocketManager:
                                     "command": {
                                         "raw": command_text,
                                         "name": cmd,
-                                        "args": args
-                                    }
+                                        "args": args,
+                                    },
                                 }
                             )
                         except Exception as e:
                             # Log and handle errors in command execution
                             import traceback
+
                             logger.error(f"Error executing command: {str(e)}")
                             logger.error(traceback.format_exc())
-                            
+
                             await websocket.send_json(
                                 {
                                     "success": False,
                                     "message": f"Error executing command: {str(e)}",
                                     "errors": [str(e)],
-                                    "command": {"raw": command_text}
+                                    "command": {"raw": command_text},
                                 }
                             )
 

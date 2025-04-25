@@ -1,12 +1,14 @@
 import json
 import logging
-import os
+
+# REMOVED: import os
 import urllib.parse
 from contextlib import contextmanager
 from typing import Any, Generator
 
 from sqlalchemy import JSON, TypeDecorator, create_engine, event
-from sqlalchemy.ext.declarative import declarative_base
+
+# REMOVED: from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
 from app.config import get_settings

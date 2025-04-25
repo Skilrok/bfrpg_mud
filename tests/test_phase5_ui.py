@@ -10,7 +10,8 @@ import requests
 import websocket
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
-from selenium.webdriver.common.action_chains import ActionChains
+
+# REMOVED: from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support import expected_conditions as EC
@@ -187,7 +188,7 @@ def authenticated_browser(browser, auth_token, character_id):
     try:
         claims = jwt.decode(auth_token, options={"verify_signature": False})
         username = claims.get("sub", "unknown_user")
-    except:
+    except Exception:
         username = f"phase5_tester_{random_suffix()}"
 
     browser.get(f"{BASE_URL}/static/login.html")
@@ -211,7 +212,7 @@ def authenticated_browser(browser, auth_token, character_id):
             WebDriverWait(browser, 10).until(
                 EC.presence_of_element_located((By.ID, "commandInput"))
             )
-        except:
+        except Exception:
             pass
 
     return browser
@@ -252,7 +253,7 @@ class TestBasicUIElements:
                 if username_input and password_input and login_button:
                     login_found = True
                     break
-            except:
+            except Exception:
                 continue
 
         assert login_found, "Could not find login page elements on any common path"
@@ -525,14 +526,14 @@ class TestWebSocketIntegration:
             command_input = WebDriverWait(browser, 5).until(
                 EC.presence_of_element_located((By.ID, "command-input"))
             )
-        except:
+        except Exception:
             try:
                 command_input = WebDriverWait(browser, 5).until(
                     EC.presence_of_element_located(
                         (By.XPATH, "//input[contains(@class, 'command-input')]")
                     )
                 )
-            except:
+            except Exception:
                 pytest.skip("Could not locate command input field")
                 return
 
@@ -541,14 +542,14 @@ class TestWebSocketIntegration:
             output_area = WebDriverWait(browser, 5).until(
                 EC.presence_of_element_located((By.ID, "game-output"))
             )
-        except:
+        except Exception:
             try:
                 output_area = WebDriverWait(browser, 5).until(
                     EC.presence_of_element_located(
                         (By.XPATH, "//div[contains(@class, 'game-output')]")
                     )
                 )
-            except:
+            except Exception:
                 pytest.skip("Could not locate game output area")
                 return
 

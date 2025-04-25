@@ -10,7 +10,8 @@ from app import models
 from app.database import get_db
 from app.main import app
 from app.models.base import Base
-from app.utils import get_password_hash
+
+# REMOVED: from app.utils import get_password_hash
 
 # Create test database
 TEST_DB_PATH = "test_users.db"

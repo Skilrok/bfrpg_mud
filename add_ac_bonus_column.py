@@ -3,7 +3,8 @@ import os
 import sys
 
 from sqlalchemy import Column, Integer, inspect, text
-from sqlalchemy.ext.declarative import declarative_base
+
+# REMOVED: from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session
 
 # Add the current directory to the path so we can import from app

@@ -51,11 +51,11 @@ def update_character_ac(character_name):
                     elif slot == "off_hand" and item.item_type.value == "shield":
                         if "ac_bonus" in item.properties:
                             shield_bonus = item.properties["ac_bonus"]
-                            base_ac -= shield_bonus  # Lower is better in BFRPG
-                            print(f"Applied shield bonus: -{shield_bonus}")
+                            base_ac += shield_bonus  # Higher is better in ascending AC system
+                            print(f"Applied shield bonus: +{shield_bonus}")
 
             # Apply dexterity modifier
-            new_ac = base_ac - dex_mod
+            new_ac = base_ac + dex_mod
 
             print(f"\nCalculated new AC: {new_ac}")
             print(f"Old AC in database: {character.armor_class}")

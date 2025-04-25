@@ -1,8 +1,8 @@
 import os
 from datetime import datetime, timedelta
 
-import pytest
-from fastapi.testclient import TestClient
+# REMOVED: import pytest
+# REMOVED: from fastapi.testclient import TestClient
 
 from app import models
 from app.models.hireling import HirelingType

@@ -1,6 +1,5 @@
 import datetime
 import enum
-import typing
 
 from sqlalchemy import (
     Boolean,
@@ -15,6 +14,8 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from app.models.base import JSON_TYPE, Base
+
+# REMOVED: import typing
 
 
 class CharacterRace(str, enum.Enum):
@@ -146,7 +147,7 @@ class Character(Base):
         if not isinstance(value, dict):
             try:
                 value = dict(value)
-            except:
+            except Exception:
                 return
 
         # Get current items
@@ -218,7 +219,7 @@ class Character(Base):
         if not isinstance(value, dict):
             try:
                 value = dict(value)
-            except:
+            except Exception:
                 return
 
         # Get current equipped items by slot

@@ -2,10 +2,12 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 from sqlalchemy import text
+
 # REMOVED: from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.commands.base import CommandContext, CommandHandler, CommandResponse
+
 # REMOVED: from app.commands.movement_commands import get_character_location
 from app.commands.registry import command_registry
 from app.models import Character, CharacterLocation, Room, RoomItem
@@ -140,9 +142,9 @@ class LookCommand(CommandHandler):
             items_data = db.execute(
                 text(
                     """
-                SELECT ri.id, ri.quantity, i.name, i.description 
-                FROM room_items ri 
-                JOIN items i ON ri.item_id = i.id 
+                SELECT ri.id, ri.quantity, i.name, i.description
+                FROM room_items ri
+                JOIN items i ON ri.item_id = i.id
                 WHERE ri.room_id = :room_id
                 """
                 ),
@@ -153,9 +155,9 @@ class LookCommand(CommandHandler):
             npcs_data = db.execute(
                 text(
                     """
-                SELECT rn.id, n.name, n.description 
-                FROM room_npcs rn 
-                JOIN npcs n ON rn.npc_id = n.id 
+                SELECT rn.id, n.name, n.description
+                FROM room_npcs rn
+                JOIN npcs n ON rn.npc_id = n.id
                 WHERE rn.room_id = :room_id
                 """
                 ),
@@ -166,9 +168,9 @@ class LookCommand(CommandHandler):
             characters_data = db.execute(
                 text(
                     """
-                SELECT cl.character_id, c.name 
-                FROM character_locations cl 
-                JOIN characters c ON cl.character_id = c.id 
+                SELECT cl.character_id, c.name
+                FROM character_locations cl
+                JOIN characters c ON cl.character_id = c.id
                 WHERE cl.room_id = :room_id AND cl.character_id != :char_id
                 """
                 ),
@@ -179,8 +181,8 @@ class LookCommand(CommandHandler):
             exits_data = db.execute(
                 text(
                     """
-                SELECT direction, destination_room_id, name 
-                FROM exits 
+                SELECT direction, destination_room_id, name
+                FROM exits
                 WHERE source_room_id = :room_id AND is_hidden = 0
                 """
                 ),
@@ -387,8 +389,8 @@ class LookCommand(CommandHandler):
             text(
                 """
             SELECT i.name, i.description, ri.quantity
-            FROM room_items ri 
-            JOIN items i ON ri.item_id = i.id 
+            FROM room_items ri
+            JOIN items i ON ri.item_id = i.id
             WHERE ri.room_id = :room_id AND lower(i.name) = :target
             """
             ),
@@ -416,8 +418,8 @@ class LookCommand(CommandHandler):
             text(
                 """
             SELECT n.name, n.description
-            FROM room_npcs rn 
-            JOIN npcs n ON rn.npc_id = n.id 
+            FROM room_npcs rn
+            JOIN npcs n ON rn.npc_id = n.id
             WHERE rn.room_id = :room_id AND lower(n.name) = :target
             """
             ),
@@ -439,9 +441,9 @@ class LookCommand(CommandHandler):
         character_data = db.execute(
             text(
                 """
-            SELECT c.name, c.description 
-            FROM character_locations cl 
-            JOIN characters c ON cl.character_id = c.id 
+            SELECT c.name, c.description
+            FROM character_locations cl
+            JOIN characters c ON cl.character_id = c.id
             WHERE cl.room_id = :room_id AND cl.character_id != :char_id AND lower(c.name) = :target
             """
             ),
@@ -484,7 +486,7 @@ class LookCommand(CommandHandler):
             exit_data = db.execute(
                 text(
                     """
-                SELECT e.name, e.description, r.name 
+                SELECT e.name, e.description, r.name
                 FROM exits e
                 JOIN rooms r ON e.destination_room_id = r.id
                 WHERE e.source_room_id = :room_id AND e.direction = :direction AND e.is_hidden = 0

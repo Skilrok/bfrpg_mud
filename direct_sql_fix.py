@@ -1,8 +1,8 @@
 import logging
 import os
 import sqlite3
-import sys
-from datetime import datetime
+# REMOVED: import sys
+# REMOVED: from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -151,7 +151,8 @@ def check_and_fix_rooms():
                 (
                     2,
                     "Village Tavern",
-                    "A cozy tavern with a roaring fireplace. Adventurers gather here to share tales.",
+                    " +
+            "A cozy tavern with a roaring fireplace. Adventurers gather"here to share tales.",
                     "town",
                     area_id,
                     0,
@@ -173,7 +174,8 @@ def check_and_fix_rooms():
                 (
                     4,
                     "Village Blacksmith",
-                    "The sound of hammering fills the air as the blacksmith works at the forge.",
+                    " +
+            "The sound of hammering fills the air as the blacksmith"works at the forge.",
                     "town",
                     area_id,
                     0,

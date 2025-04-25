@@ -98,7 +98,8 @@ async def create_starter_area():
             # Create the area
             area = Area(
                 name="Starting Village",
-                description="A peaceful village nestled between rolling hills and a dense forest. This is where new adventurers begin their journey.",
+                description=" +
+            "A peaceful village nestled between rolling hills and a"dense forest. This is where new adventurers begin their"journey.",
                 level_range="1-3",
                 is_dungeon=False,
                 is_hidden=False,
@@ -197,7 +198,8 @@ async def create_starter_area():
                     destination_room_id=rooms["tavern"].id,
                     direction="west",
                     name="tavern door",
-                    description="The sign of the Laughing Dragon swings above the tavern door.",
+                    description=" +
+            "The sign of the Laughing Dragon swings above the tavern"door.",
                 ),
                 Exit(
                     source_room_id=rooms["tavern"].id,
@@ -275,7 +277,8 @@ async def create_starter_area():
             items = [
                 Item(
                     name="Rusty Sword",
-                    description="A basic sword showing signs of wear but still serviceable.",
+                    description=" +
+            "A basic sword showing signs of wear but still"serviceable.",
                     item_type="WEAPON",
                     room_id=rooms["blacksmith"].id,
                     properties={"damage": "1d6", "value": 5, "weight": 2},

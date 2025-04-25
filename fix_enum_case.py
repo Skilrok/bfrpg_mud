@@ -209,7 +209,8 @@ def force_fix_enum_values():
                 if lowercase != correct:
                     result = db.execute(
                         text(
-                            "UPDATE characters SET race = :correct WHERE LOWER(race) = :lowercase"
+                            " +
+            "UPDATE characters SET race = :correct WHERE LOWER(race) =":lowercase"
                         ),
                         {"correct": correct, "lowercase": lowercase},
                     )
@@ -223,7 +224,8 @@ def force_fix_enum_values():
                 if lowercase != correct:
                     result = db.execute(
                         text(
-                            "UPDATE characters SET character_class = :correct WHERE LOWER(character_class) = :lowercase"
+                            " +
+            "UPDATE characters SET character_class = :correct WHERE"LOWER(character_class) = :lowercase"
                         ),
                         {"correct": correct, "lowercase": lowercase},
                     )

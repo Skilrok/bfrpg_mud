@@ -134,7 +134,7 @@ async def get_current_user(
                 user = db.query(models.User).filter(models.User.id == user_id).first()
                 if user:
                     return user
-            except:
+            except Exception:
                 # If test token parsing fails, continue with normal validation
                 pass
 

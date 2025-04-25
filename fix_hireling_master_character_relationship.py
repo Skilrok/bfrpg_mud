@@ -8,7 +8,7 @@ This script:
 """
 
 import logging
-import os
+# REMOVED: import os
 import re
 import traceback
 from pathlib import Path
@@ -16,7 +16,7 @@ from pathlib import Path
 from sqlalchemy import text
 
 from app.database import get_db_context
-from app.models.hireling import Hireling
+# REMOVED: from app.models.hireling import Hireling
 
 # Set up logging
 logging.basicConfig(
@@ -323,7 +323,8 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description="Fix the mismatch between master_id and character_id in the codebase"
+        description=" +
+            "Fix the mismatch between master_id and character_id in the"codebase"
     )
     parser.add_argument(
         "--code-only",

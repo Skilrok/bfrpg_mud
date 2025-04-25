@@ -7,7 +7,7 @@ import os
 import sys
 
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+# REMOVED: from sqlalchemy.orm import Session
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -43,7 +43,8 @@ def create_starter_area():
                 logger.info("Creating starting area...")
                 # Insert the area with direct SQL
                 insert_sql = text(
-                    "INSERT INTO areas (name, description, level_range, is_dungeon, is_hidden, properties, created_at, updated_at) "
+                    " +
+            "INSERT INTO areas (name, description, level_range,"is_dungeon, is_hidden, properties, created_at, updated_at)""
                     "VALUES ('Starting Village', 'A small village where adventures begin', '1-3', 0, 0, '{}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP) "
                     "RETURNING id"
                 )
@@ -66,7 +67,8 @@ def create_starter_area():
                 logger.info("Creating starting room...")
                 # Insert the room with direct SQL
                 room_insert_sql = text(
-                    "INSERT INTO rooms (id, name, description, room_type, area_id, x, y, z, is_dark, exits, properties, created_at, updated_at) "
+                    " +
+            "INSERT INTO rooms (id, name, description, room_type,"area_id, x, y, z, is_dark, exits, properties, created_at,"updated_at) "
                     f"VALUES (1, 'Village Square', 'The central square of the starting village. Paths lead in all directions.', '{RoomType.TOWN}', {starting_area_id}, 0, 0, 0, 0, '{{}}', '{{}}', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
                 )
                 db.execute(room_insert_sql)

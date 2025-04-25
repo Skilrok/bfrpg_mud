@@ -8,7 +8,7 @@ Create Date: 2023-10-18 12:00:00.000000
 
 import sqlalchemy as sa
 from sqlalchemy import inspect
-from sqlalchemy.dialects import postgresql
+# REMOVED: from sqlalchemy.dialects import postgresql
 
 from alembic import op
 
@@ -122,7 +122,8 @@ def upgrade():
             sa.ForeignKeyConstraint(["npc_id"], ["npcs.id"], ondelete="CASCADE"),
             sa.PrimaryKeyConstraint("id"),
             sa.CheckConstraint(
-                "(character_id IS NULL AND npc_id IS NOT NULL) OR (character_id IS NOT NULL AND npc_id IS NULL)"
+                " +
+            "(character_id IS NULL AND npc_id IS NOT NULL) OR"(character_id IS NOT NULL AND npc_id IS NULL)"
             ),
         )
 

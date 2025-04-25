@@ -14,7 +14,8 @@ from app.constants import CharacterClass, CharacterRace, ItemType
 from app.models import Character, Hireling, Item, Room, User
 from app.models.hireling import HirelingType
 from app.routers.auth import create_access_token
-from app.utils import get_password_hash
+
+# REMOVED: from app.utils import get_password_hash
 
 
 def create_test_user(

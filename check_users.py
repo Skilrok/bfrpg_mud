@@ -1,6 +1,6 @@
-import os
+# REMOVED: import os
 import sqlite3
-import sys
+# REMOVED: import sys
 from pathlib import Path
 
 
@@ -39,7 +39,8 @@ def check_database_users(db_file):
 
         # Get user data
         cursor.execute(
-            "SELECT id, username, email, is_admin, is_active, hashed_password FROM users"
+            " +
+            "SELECT id, username, email, is_admin, is_active,"hashed_password FROM users"
         )
         users = cursor.fetchall()
 
