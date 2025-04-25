@@ -1,10 +1,13 @@
 import logging
-import os
-import re
+
+# REMOVED: import os
+# REMOVED: import re
 from functools import lru_cache
-from typing import Optional
 
 from pydantic import BaseSettings
+
+# REMOVED: from typing import Optional
+
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +81,8 @@ def validate_settings(settings: Settings) -> Settings:
             logger.error("SECRET_KEY is not set in production environment!")
             raise ValueError("SECRET_KEY must be set for production environment")
         logger.warning(
-            "SECRET_KEY is not set. Using an insecure default - DO NOT USE IN PRODUCTION!"
+            "SECRET_KEY is not set. Using an insecure default - "
+            "DO NOT USE IN PRODUCTION!"
         )
         settings.SECRET_KEY = "insecure_default_key_for_development_only_1234567890"
 
