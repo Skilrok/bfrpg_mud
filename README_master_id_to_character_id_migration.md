@@ -54,4 +54,4 @@ This approach ensures data integrity during the migration process.
 
 ## Related Issues
 
-This migration resolves issues related to the hireling-character relationship naming inconsistency, which could have led to hard-to-debug errors in character management functionality. 
+This migration resolves issues related to the hireling-character relationship naming inconsistency, which could have led to hard-to-debug errors in character management functionality.

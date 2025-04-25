@@ -470,11 +470,18 @@ class EquipCommand(CommandHandler):
                                 # First try to use the ac_bonus column
                                 if slot_db_item.ac_bonus is not None:
                                     ac_bonus = slot_db_item.ac_bonus
-                                    logger.debug(f"Using ac_bonus column value: {ac_bonus}")
+                                    logger.debug(
+                                        f"Using ac_bonus column value: {ac_bonus}"
+                                    )
                                 # Fall back to properties if column is None
-                                elif slot_db_item.properties and "ac_bonus" in slot_db_item.properties:
+                                elif (
+                                    slot_db_item.properties
+                                    and "ac_bonus" in slot_db_item.properties
+                                ):
                                     ac_bonus = slot_db_item.properties["ac_bonus"]
-                                    logger.debug(f"Using properties ac_bonus value: {ac_bonus}")
+                                    logger.debug(
+                                        f"Using properties ac_bonus value: {ac_bonus}"
+                                    )
                                 if (
                                     slot_name == "body"
                                     and slot_db_item.item_type.value == "armor"
@@ -698,11 +705,18 @@ class UnequipCommand(CommandHandler):
                                 # First try to use the ac_bonus column
                                 if slot_db_item.ac_bonus is not None:
                                     ac_bonus = slot_db_item.ac_bonus
-                                    logger.debug(f"Using ac_bonus column value: {ac_bonus}")
+                                    logger.debug(
+                                        f"Using ac_bonus column value: {ac_bonus}"
+                                    )
                                 # Fall back to properties if column is None
-                                elif slot_db_item.properties and "ac_bonus" in slot_db_item.properties:
+                                elif (
+                                    slot_db_item.properties
+                                    and "ac_bonus" in slot_db_item.properties
+                                ):
                                     ac_bonus = slot_db_item.properties["ac_bonus"]
-                                    logger.debug(f"Using properties ac_bonus value: {ac_bonus}")
+                                    logger.debug(
+                                        f"Using properties ac_bonus value: {ac_bonus}"
+                                    )
                                 if (
                                     slot_name == "body"
                                     and slot_db_item.item_type.value == "armor"

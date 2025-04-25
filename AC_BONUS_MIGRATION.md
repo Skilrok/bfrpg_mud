@@ -11,11 +11,11 @@ This document outlines the migration process for adding and utilizing the `ac_bo
    - Column purpose: Store the armor class bonus value directly in a dedicated column rather than only in the JSON properties field
 
 2. **Data Migration**: Populated the `ac_bonus` column with values from the properties field
-   - Extracted `ac_bonus` values from `properties['ac_bonus']` 
+   - Extracted `ac_bonus` values from `properties['ac_bonus']`
    - Special focus on Shield item (ID 80) which was updated with a value of 1
 
 3. **Code Updates**: Modified code to use the new column instead of accessing the properties field
-   - Updated `EquipCommand` and `UnequipCommand` in `app/commands/basic_commands.py` 
+   - Updated `EquipCommand` and `UnequipCommand` in `app/commands/basic_commands.py`
    - Updated character router functions in `app/routers/characters.py`
    - Added fallback to properties when column value is null for backward compatibility
 

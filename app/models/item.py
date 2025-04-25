@@ -46,5 +46,7 @@ class Item(Base):
     # Properties specific to weapon/armor types
     damage = Column(String, nullable=True)  # E.g. "1d6"
     armor_class = Column(Integer, nullable=True)
-    ac_bonus = Column(Integer, nullable=True)  # AC bonus for shields and some magic items
+    ac_bonus = Column(
+        Integer, nullable=True
+    )  # AC bonus for shields and some magic items
     properties = Column(JSON_TYPE, default=dict)

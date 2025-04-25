@@ -58,4 +58,4 @@ In the character sheet UI:
 
 1. **Test with Real Data**: Verify the UI updates work correctly with actual character data
 2. **Update Other UI Components**: If there are other places in the UI that show AC bonus values, update those as well
-3. **Consider UI Enhancements**: Potentially highlight the total AC bonus from all equipped items 
+3. **Consider UI Enhancements**: Potentially highlight the total AC bonus from all equipped items

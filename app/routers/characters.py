@@ -535,7 +535,9 @@ async def get_character_journal(
 
 @router.get("/{character_id}/hirelings", response_model=List[schemas.Hireling])
 async def get_character_hirelings(
-    character_id: int, db: Session = Depends(get_db), current_user: schemas.User = Depends(get_current_user)
+    character_id: int,
+    db: Session = Depends(get_db),
+    current_user: schemas.User = Depends(get_current_user),
 ):
     """Get all hirelings associated with a character"""
     try:
@@ -548,19 +550,25 @@ async def get_character_hirelings(
             )
             .first()
         )
-        
+
         if not character:
             raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND, 
-                detail=f"Character with ID {character_id} not found"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Character with ID {character_id} not found",
             )
-        
+
         # Get hirelings for this character
-        hirelings = db.query(models.Hireling).filter(models.Hireling.character_id == character_id).all()
-        
+        hirelings = (
+            db.query(models.Hireling)
+            .filter(models.Hireling.character_id == character_id)
+            .all()
+        )
+
         return hirelings
     except Exception as e:
-        logger.error(f"Error retrieving hirelings for character ID {character_id}: {str(e)}")
+        logger.error(
+            f"Error retrieving hirelings for character ID {character_id}: {str(e)}"
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error retrieving hirelings: {str(e)}",
