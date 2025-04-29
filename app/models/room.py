@@ -1,6 +1,5 @@
 import enum
-
-# REMOVED: from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
     Boolean,
@@ -11,16 +10,14 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
-    inspect,
+    text,
 )
-from sqlalchemy.ext.declarative import declared_attr
+from sqlalchemy.orm import relationship
+
+from app.models.base import JSON_TYPE, Base
 
 # REMOVED: from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-
-from app.database import engine
-from app.models.base import JSON_TYPE, Base
+# REMOVED: from datetime import datetime
 
 
 class RoomType(str, enum.Enum):
@@ -65,8 +62,12 @@ class Room(Base):
     )  # Flexible field for room-specific properties
 
     # Timestamps
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime, server_default=text("CURRENT_TIMESTAMP"))
+    updated_at = Column(
+        DateTime,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP"),
+    )
 
     # Relationships
     area = relationship("Area", back_populates="rooms")
@@ -95,71 +96,82 @@ class Room(Base):
 
 
 class Area(Base):
-    """Area model for grouping related rooms"""
+    """Represents a geographical area or dungeon in the game world."""
 
     __tablename__ = "areas"
 
-    id = Column(Integer, primary_key=True, index=True)
+    id = Column(Integer, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
-    level_range = Column(String, nullable=True)  # e.g. "1-5"
+    level_range = Column(String, nullable=True)
+    is_dungeon = Column(Boolean, nullable=False, default=True)
+    is_hidden = Column(Boolean, nullable=False, default=False)
+    properties = Column(JSON_TYPE, nullable=True)
+    created_at = Column(
+        DateTime, nullable=False, server_default=text("CURRENT_TIMESTAMP")
+    )
+    updated_at = Column(
+        DateTime,
+        nullable=False,
+        server_default=text("CURRENT_TIMESTAMP"),
+        onupdate=text("CURRENT_TIMESTAMP"),
+    )
 
-    # The following columns may not exist in older databases, make them safe
-    @declared_attr
-    def is_dungeon(cls):
-        try:
-            insp = inspect(engine)
-            columns = [c["name"] for c in insp.get_columns("areas")]
-            if "is_dungeon" in columns:
-                return Column(Boolean, default=True)
-            else:
-                return None
-        except Exception as e:
-            import logging
+    # New fields for hierarchical relationships
+    parent_id = Column(Integer, ForeignKey("areas.id"), nullable=True)
+    parent = relationship("Area", remote_side=[id], backref="children")
 
-            logging.getLogger(__name__).warning(
-                f"Error checking is_dungeon column: {e}"
-            )
-            return Column(Boolean, default=True, nullable=True)
+    # New fields for area categorization and relationships
+    area_type = Column(
+        String, nullable=True, default="region"
+    )  # e.g., continent, region, dungeon, etc.
+    related_areas = Column(
+        JSON_TYPE, nullable=True, default=[]
+    )  # Array of related area IDs
+    tags = Column(JSON_TYPE, nullable=True, default=[])  # Flexible categorization
+    area_metadata = Column(
+        JSON_TYPE, nullable=True, default={}
+    )  # Additional area information
 
-    @declared_attr
-    def is_hidden(cls):
-        try:
-            insp = inspect(engine)
-            columns = [c["name"] for c in insp.get_columns("areas")]
-            if "is_hidden" in columns:
-                return Column(Boolean, default=False)
-            else:
-                return None
-        except Exception as e:
-            import logging
+    # Relationship with rooms
+    rooms = relationship("Room", back_populates="area", cascade="all, delete-orphan")
 
-            logging.getLogger(__name__).warning(f"Error checking is_hidden column: {e}")
-            return Column(Boolean, default=False, nullable=True)
+    def __repr__(self):
+        return f"<Area(id={self.id}, name='{self.name}', type='{self.area_type}')>"
 
-    @declared_attr
-    def properties(cls):
-        try:
-            insp = inspect(engine)
-            columns = [c["name"] for c in insp.get_columns("areas")]
-            if "properties" in columns:
-                return Column(JSON_TYPE, default=dict)
-            else:
-                return None
-        except Exception as e:
-            import logging
+    def add_related_area(self, area_id: int) -> None:
+        """Add a related area ID to the related_areas list."""
+        if not self.related_areas:
+            self.related_areas = []
+        if area_id not in self.related_areas:
+            self.related_areas.append(area_id)
 
-            logging.getLogger(__name__).warning(
-                f"Error checking properties column: {e}"
-            )
-            return Column(JSON_TYPE, default=dict, nullable=True)
+    def remove_related_area(self, area_id: int) -> None:
+        """Remove a related area ID from the related_areas list."""
+        if self.related_areas and area_id in self.related_areas:
+            self.related_areas.remove(area_id)
 
-    # Timestamps
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    def add_tag(self, tag: str) -> None:
+        """Add a tag to the area."""
+        if not self.tags:
+            self.tags = []
+        if tag not in self.tags:
+            self.tags.append(tag)
 
-    # Relationships
-    rooms = relationship("Room", back_populates="area")
+    def remove_tag(self, tag: str) -> None:
+        """Remove a tag from the area."""
+        if self.tags and tag in self.tags:
+            self.tags.remove(tag)
+
+    def update_metadata(self, key: str, value: Any) -> None:
+        """Update a metadata field."""
+        if not self.area_metadata:
+            self.area_metadata = {}
+        self.area_metadata[key] = value
+
+    def get_metadata(self, key: str, default: Any = None) -> Any:
+        """Get a metadata field value."""
+        return self.area_metadata.get(key, default) if self.area_metadata else default
 
 
 class RoomItem(Base):
